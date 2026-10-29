@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { APP_CONFIG, readConfig } from './config';
 import { Database } from './database';
 import { DomainError, ErrorFilter } from './errors';
+import { WalletsController, WalletsService } from './wallets';
 
 @Controller()
 class HealthController {
@@ -23,8 +24,8 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController],
-  providers: [{ provide: APP_CONFIG, useFactory: () => readConfig() }, Database],
+  controllers: [HealthController, WalletsController],
+  providers: [{ provide: APP_CONFIG, useFactory: () => readConfig() }, Database, WalletsService],
 })
 export class AppModule {}
 
