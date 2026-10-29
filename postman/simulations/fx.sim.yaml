@@ -1,0 +1,22 @@
+simulation: fx
+routing: path
+mocks:
+  - name: currency-api
+    routeKey: fx
+    path: ../mocks/currency-api/config.yaml
+  - name: currency-api-unavailable
+    routeKey: fx-error
+    path: ../mocks/currency-api/config.yaml
+    scenarios:
+      - overrides:
+          conditions:
+            error:
+              status_code: 503
+  - name: currency-api-slow
+    routeKey: fx-slow
+    path: ../mocks/currency-api/config.yaml
+    scenarios:
+      - overrides:
+          conditions:
+            latency:
+              delay_ms: 2000

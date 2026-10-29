@@ -5,5 +5,16 @@ export default tseslint.config(
   { ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'postman/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        AbortSignal: 'readonly',
+      },
+    },
+  },
   { files: ['**/*.ts'], rules: { '@typescript-eslint/no-explicit-any': 'error' } },
 );
