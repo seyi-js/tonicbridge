@@ -51,7 +51,7 @@ Compose supplies its own internal database URL. Its credentials are disposable l
 
 ## API walkthrough
 
-The complete contract is [docs/openapi.json](docs/openapi.json); it can also be imported into Postman. No authentication is required by this sandbox. Use synthetic identities.
+The complete contract is [docs/openapi.json](docs/openapi.json); it can also be imported into Postman (set the imported `baseUrl` to your running API address). No authentication is required by this sandbox. Use synthetic identities.
 
 | Method | Path                              | Behavior                                          |
 | ------ | --------------------------------- | ------------------------------------------------- |
