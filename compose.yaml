@@ -21,6 +21,8 @@ services:
       DATABASE_URL: postgresql://tonic:tonic_local@db:5432/tonicbridge
       FX_MODE: ${FX_MODE:-live}
       FX_BASE_URL: ${FX_BASE_URL:-https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest}
+      FX_TIMEOUT_MS: ${FX_TIMEOUT_MS:-2500}
+      FX_CACHE_SECONDS: ${FX_CACHE_SECONDS:-3600}
     ports:
       - '127.0.0.1:${API_PORT:-3000}:3000'
     depends_on:
