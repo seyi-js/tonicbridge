@@ -600,7 +600,8 @@
             "schema": {
               "type": "integer",
               "minimum": 0,
-              "default": 0
+              "default": 0,
+              "maximum": 2147483647
             }
           }
         ],
@@ -635,7 +636,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Newest first, ordered by createdAt then id descending. Currency matches either side. Limit and offset must be canonical decimal integers. Unknown query parameters are rejected."
       }
     },
     "/transactions/{transactionId}": {

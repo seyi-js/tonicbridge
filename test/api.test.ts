@@ -310,3 +310,91 @@ describe('transfers', () => {
     await transfer(sender, recipient, '1', 'USDx', 'USDx', key).expect(201);
   });
 });
+
+describe('transaction history', () => {
+  it('includes incoming and outgoing activity once, with filtering and stable page order', async () => {
+    const id = await wallet();
+    const other = await wallet();
+    const funded = await deposit(id, '10').expect(201);
+    const exchanged = await swap(id, '2').expect(201);
+    const sent = await transfer(id, other, '1').expect(201);
+    const received = await transfer(other, id, '0.5', 'USDx', 'EURx').expect(201);
+    const read = (query = '') =>
+      request(app.getHttpServer()).get(`/wallets/${id}/transactions${query}`);
+    const all = await read().expect(200);
+    expect(all.body.total).toBe(4);
+    expect(all.body.items.map((t: { id: string }) => t.id)).toEqual([
+      received.body.id,
+      sent.body.id,
+      exchanged.body.id,
+      funded.body.id,
+    ]);
+    const page = await read('?limit=2&offset=1').expect(200);
+    expect(page.body).toMatchObject({ total: 4, limit: 2, offset: 1 });
+    expect(page.body.items.map((t: { id: string }) => t.id)).toEqual([
+      sent.body.id,
+      exchanged.body.id,
+    ]);
+    const filtered = await read('?type=transfer&currency=EURx').expect(200);
+    expect(filtered.body.total).toBe(1);
+    expect(filtered.body.items[0].id).toBe(received.body.id);
+    const sourceCurrency = await read('?type=transfer&currency=USDx').expect(200);
+    expect(sourceCurrency.body.total).toBe(2);
+    const beyond = await read('?offset=100').expect(200);
+    expect(beyond.body).toMatchObject({ items: [], total: 4 });
+    const recipientHistory = await request(app.getHttpServer())
+      .get(`/wallets/${other}/transactions`)
+      .expect(200);
+    expect(recipientHistory.body.items.map((t: { id: string }) => t.id)).toEqual([
+      received.body.id,
+      sent.body.id,
+    ]);
+    const detail = await request(app.getHttpServer())
+      .get(`/transactions/${received.body.id}`)
+      .expect(200);
+    expect(detail.body).toEqual(received.body);
+  });
+  it('breaks timestamp ties by transaction ID descending', async () => {
+    const id = await wallet();
+    const results = await Promise.all(Array.from({ length: 3 }, () => deposit(id, '1')));
+    await app
+      .get(Database)
+      .query(
+        "UPDATE transactions SET created_at='2026-10-01T00:00:00Z' WHERE destination_wallet_id=$1",
+        [id],
+      );
+    const read = await request(app.getHttpServer())
+      .get(`/wallets/${id}/transactions?limit=2&offset=1`)
+      .expect(200);
+    const ids = results
+      .map((r) => r.body.id as string)
+      .sort()
+      .reverse()
+      .slice(1);
+    expect(read.body.items.map((t: { id: string }) => t.id)).toEqual(ids);
+  });
+  it('returns an empty history and rejects malformed queries or unknown records', async () => {
+    const id = await wallet();
+    const response = await request(app.getHttpServer())
+      .get(`/wallets/${id}/transactions`)
+      .expect(200);
+    expect(response.body).toEqual({ items: [], total: 0, limit: 20, offset: 0 });
+    for (const query of [
+      'limit=0',
+      'limit=101',
+      'offset=-1',
+      'offset=1e3',
+      'limit=2.5',
+      'limit=1&limit=2',
+      'offset=2147483648',
+      'currency=BTC',
+      'type=withdrawal',
+      'sort=asc',
+    ]) {
+      await request(app.getHttpServer()).get(`/wallets/${id}/transactions?${query}`).expect(400);
+    }
+    await request(app.getHttpServer()).get(`/wallets/${randomUUID()}/transactions`).expect(404);
+    await request(app.getHttpServer()).get(`/transactions/${randomUUID()}`).expect(404);
+    await request(app.getHttpServer()).get('/transactions/invalid').expect(400);
+  });
+});

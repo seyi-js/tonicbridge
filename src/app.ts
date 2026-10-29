@@ -9,6 +9,7 @@ import { DomainError, ErrorFilter } from './errors';
 import { WalletsController, WalletsService } from './wallets';
 import { TransactionsController, TransactionsService } from './transactions';
 import { FxController, FxService } from './fx';
+import { HistoryController, HistoryService } from './history';
 
 @Controller()
 class HealthController {
@@ -26,13 +27,20 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, WalletsController, TransactionsController, FxController],
+  controllers: [
+    HealthController,
+    WalletsController,
+    TransactionsController,
+    FxController,
+    HistoryController,
+  ],
   providers: [
     { provide: APP_CONFIG, useFactory: () => readConfig() },
     Database,
     WalletsService,
     TransactionsService,
     FxService,
+    HistoryService,
   ],
 })
 export class AppModule {}
