@@ -1,0 +1,1181 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TonicBridge",
+    "version": "1.0.0",
+    "description": "Operation Borderless: simulated wallets, no authentication or real funds. Monetary amounts are decimal strings. See docs/decisions.md."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Database readiness",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets": {
+      "post": {
+        "operationId": "createWallet",
+        "summary": "Create five zero currency balances",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWallet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wallet"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Identity already registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{walletId}": {
+      "get": {
+        "operationId": "getWallet",
+        "parameters": [
+          {
+            "name": "walletId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wallet"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{walletId}/balances": {
+      "get": {
+        "operationId": "getBalances",
+        "parameters": [
+          {
+            "name": "walletId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Balances"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{walletId}/deposits": {
+      "post": {
+        "operationId": "deposit",
+        "parameters": [
+          {
+            "name": "walletId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{8,128}$"
+            },
+            "description": "Scoped to the wallet across money endpoints. Equivalent normalized input replays; changed input conflicts."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Deposit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Committed once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Original transaction replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient funds, overflow or amount too small",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{walletId}/swaps": {
+      "post": {
+        "operationId": "swap",
+        "parameters": [
+          {
+            "name": "walletId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{8,128}$"
+            },
+            "description": "Scoped to the wallet across money endpoints. Equivalent normalized input replays; changed input conflicts."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Swap"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Committed once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Original transaction replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient funds, overflow or amount too small",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{walletId}/transfers": {
+      "post": {
+        "operationId": "transfer",
+        "parameters": [
+          {
+            "name": "walletId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{8,128}$"
+            },
+            "description": "Scoped to the wallet across money endpoints. Equivalent normalized input replays; changed input conflicts."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transfer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Committed once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "false"
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Original transaction replayed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "headers": {
+              "Idempotency-Replayed": {
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "true"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Insufficient funds, overflow or amount too small",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallets/{walletId}/transactions": {
+      "get": {
+        "operationId": "listTransactions",
+        "parameters": [
+          {
+            "name": "walletId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deposit",
+                "swap",
+                "transfer"
+              ]
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cNGN",
+                "cGHS",
+                "cXAF",
+                "USDx",
+                "EURx"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/History"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transactions/{transactionId}": {
+      "get": {
+        "operationId": "getTransaction",
+        "parameters": [
+          {
+            "name": "transactionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Transaction not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rates": {
+      "get": {
+        "operationId": "getRates",
+        "summary": "All 25 directed pairs, including identity pairs; live or labelled fixed fallback",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rates"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "Wallet": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "phone",
+          "createdAt"
+        ]
+      },
+      "CreateWallet": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+[1-9][0-9]{7,14}$"
+          }
+        },
+        "required": [],
+        "anyOf": [
+          {
+            "required": [
+              "email"
+            ]
+          },
+          {
+            "required": [
+              "phone"
+            ]
+          }
+        ]
+      },
+      "Amount": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]{0,17})(\\.[0-9]{1,6})?$",
+        "description": "Positive decimal string; up to 18 integer and 6 fractional digits.",
+        "example": "100.25"
+      },
+      "Deposit": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          }
+        },
+        "required": [
+          "currency",
+          "amount"
+        ]
+      },
+      "Swap": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "fromCurrency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "toCurrency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          }
+        },
+        "required": [
+          "fromCurrency",
+          "toCurrency",
+          "amount"
+        ]
+      },
+      "Transfer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "recipientWalletId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fromCurrency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "toCurrency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Amount"
+          }
+        },
+        "required": [
+          "recipientWalletId",
+          "fromCurrency",
+          "toCurrency",
+          "amount"
+        ]
+      },
+      "Transaction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "deposit",
+              "swap",
+              "transfer"
+            ]
+          },
+          "sourceWalletId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "destinationWalletId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceCurrency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "destinationCurrency": {
+            "type": "string",
+            "enum": [
+              "cNGN",
+              "cGHS",
+              "cXAF",
+              "USDx",
+              "EURx"
+            ]
+          },
+          "sourceAmount": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{6}$",
+            "example": "100.000000"
+          },
+          "destinationAmount": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{6}$",
+            "example": "100.000000"
+          },
+          "rate": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{12}$",
+            "example": "1.000000000000"
+          },
+          "rateSource": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixed"
+            ],
+            "nullable": true
+          },
+          "rateUpdatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "sourceWalletId",
+          "destinationWalletId",
+          "sourceCurrency",
+          "destinationCurrency",
+          "sourceAmount",
+          "destinationAmount",
+          "rate",
+          "rateSource",
+          "rateUpdatedAt",
+          "createdAt"
+        ]
+      },
+      "Rates": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixed"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rates": {
+            "type": "array",
+            "minItems": 25,
+            "maxItems": 25,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "enum": [
+                    "cNGN",
+                    "cGHS",
+                    "cXAF",
+                    "USDx",
+                    "EURx"
+                  ]
+                },
+                "to": {
+                  "type": "string",
+                  "enum": [
+                    "cNGN",
+                    "cGHS",
+                    "cXAF",
+                    "USDx",
+                    "EURx"
+                  ]
+                },
+                "rate": {
+                  "type": "string",
+                  "pattern": "^[0-9]+\\.[0-9]{12}$",
+                  "example": "1.000000000000"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "rate",
+                "updatedAt"
+              ]
+            }
+          }
+        },
+        "required": [
+          "source",
+          "updatedAt",
+          "rates"
+        ]
+      },
+      "Balances": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "walletId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "balances": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "currency": {
+                  "type": "string",
+                  "enum": [
+                    "cNGN",
+                    "cGHS",
+                    "cXAF",
+                    "USDx",
+                    "EURx"
+                  ]
+                },
+                "amount": {
+                  "type": "string",
+                  "pattern": "^[0-9]+\\.[0-9]{6}$",
+                  "example": "100.000000"
+                },
+                "usdValue": {
+                  "type": "string",
+                  "pattern": "^[0-9]+\\.[0-9]{6}$",
+                  "example": "100.000000"
+                }
+              },
+              "required": [
+                "currency",
+                "amount",
+                "usdValue"
+              ]
+            }
+          },
+          "totalUsd": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{6}$",
+            "example": "100.000000"
+          },
+          "rateSource": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixed"
+            ]
+          },
+          "rateUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "walletId",
+          "balances",
+          "totalUsd",
+          "rateSource",
+          "rateUpdatedAt"
+        ]
+      },
+      "History": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ]
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    }
+  }
+}
