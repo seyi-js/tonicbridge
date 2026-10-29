@@ -98,6 +98,12 @@ export class FxService {
           EURx: String(data.usd.eur),
         },
       };
+      if (
+        currencies.some((from) =>
+          currencies.some((to) => new D(this.rate(snapshot, from, to)).lte(0)),
+        )
+      )
+        throw new Error('FX pair is below the supported rate precision');
       this.cached = { snapshot, expiresAt: Date.now() + this.config.FX_CACHE_SECONDS * 1000 };
       return snapshot;
     } catch {

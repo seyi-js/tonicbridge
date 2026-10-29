@@ -64,6 +64,7 @@ describe('FX HTTP adapter', () => {
       ['<html>Unavailable</html>', 200],
       [{ ...valid(), usd: { usd: 1 } }, 200],
       [{ ...valid(), usd: { ...valid().usd, ngn: 0 } }, 200],
+      [{ ...valid(), usd: { ...valid().usd, ngn: 1e9, eur: 0.000001 } }, 200],
       [{ ...valid(), date: '2001-01-01' }, 200],
       [{ ...valid(), date: '2099-01-01' }, 200],
     ];
