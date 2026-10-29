@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tonic
+      POSTGRES_PASSWORD: tonic_local
+      POSTGRES_DB: tonicbridge
+    ports:
+      - '127.0.0.1:${DB_PORT:-55432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U tonic -d tonicbridge']
+      interval: 3s
+      timeout: 3s
+      retries: 15
+  api:
+    build: .
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://tonic:tonic_local@db:5432/tonicbridge
+      FX_MODE: ${FX_MODE:-live}
+      FX_BASE_URL: ${FX_BASE_URL:-https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest}
+    ports:
+      - '127.0.0.1:${API_PORT:-3000}:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+volumes:
+  postgres_data:

@@ -231,9 +231,7 @@
               "Idempotency-Replayed": {
                 "schema": {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               }
             }
@@ -251,9 +249,7 @@
               "Idempotency-Replayed": {
                 "schema": {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 }
               }
             }
@@ -359,9 +355,7 @@
               "Idempotency-Replayed": {
                 "schema": {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               }
             }
@@ -379,9 +373,7 @@
               "Idempotency-Replayed": {
                 "schema": {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 }
               }
             }
@@ -487,9 +479,7 @@
               "Idempotency-Replayed": {
                 "schema": {
                   "type": "string",
-                  "enum": [
-                    "false"
-                  ]
+                  "enum": ["false"]
                 }
               }
             }
@@ -507,9 +497,7 @@
               "Idempotency-Replayed": {
                 "schema": {
                   "type": "string",
-                  "enum": [
-                    "true"
-                  ]
+                  "enum": ["true"]
                 }
               }
             }
@@ -585,11 +573,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "deposit",
-                "swap",
-                "transfer"
-              ]
+              "enum": ["deposit", "swap", "transfer"]
             }
           },
           {
@@ -597,13 +581,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "cNGN",
-                "cGHS",
-                "cXAF",
-                "USDx",
-                "EURx"
-              ]
+              "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
             }
           },
           {
@@ -740,10 +718,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "code",
-          "message"
-        ]
+        "required": ["code", "message"]
       },
       "Wallet": {
         "type": "object",
@@ -766,12 +741,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "email",
-          "phone",
-          "createdAt"
-        ]
+        "required": ["id", "email", "phone", "createdAt"]
       },
       "CreateWallet": {
         "type": "object",
@@ -787,17 +757,12 @@
             "pattern": "^\\+[1-9][0-9]{7,14}$"
           }
         },
-        "required": [],
         "anyOf": [
           {
-            "required": [
-              "email"
-            ]
+            "required": ["email"]
           },
           {
-            "required": [
-              "phone"
-            ]
+            "required": ["phone"]
           }
         ]
       },
@@ -813,22 +778,13 @@
         "properties": {
           "currency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "amount": {
             "$ref": "#/components/schemas/Amount"
           }
         },
-        "required": [
-          "currency",
-          "amount"
-        ]
+        "required": ["currency", "amount"]
       },
       "Swap": {
         "type": "object",
@@ -836,33 +792,17 @@
         "properties": {
           "fromCurrency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "toCurrency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "amount": {
             "$ref": "#/components/schemas/Amount"
           }
         },
-        "required": [
-          "fromCurrency",
-          "toCurrency",
-          "amount"
-        ]
+        "required": ["fromCurrency", "toCurrency", "amount"]
       },
       "Transfer": {
         "type": "object",
@@ -874,34 +814,17 @@
           },
           "fromCurrency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "toCurrency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "amount": {
             "$ref": "#/components/schemas/Amount"
           }
         },
-        "required": [
-          "recipientWalletId",
-          "fromCurrency",
-          "toCurrency",
-          "amount"
-        ]
+        "required": ["recipientWalletId", "fromCurrency", "toCurrency", "amount"]
       },
       "Transaction": {
         "type": "object",
@@ -913,11 +836,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "deposit",
-              "swap",
-              "transfer"
-            ]
+            "enum": ["deposit", "swap", "transfer"]
           },
           "sourceWalletId": {
             "type": "string",
@@ -930,23 +849,11 @@
           },
           "sourceCurrency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "destinationCurrency": {
             "type": "string",
-            "enum": [
-              "cNGN",
-              "cGHS",
-              "cXAF",
-              "USDx",
-              "EURx"
-            ]
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
           },
           "sourceAmount": {
             "type": "string",
@@ -965,10 +872,7 @@
           },
           "rateSource": {
             "type": "string",
-            "enum": [
-              "live",
-              "fixed"
-            ],
+            "enum": ["live", "fixed"],
             "nullable": true
           },
           "rateUpdatedAt": {
@@ -1002,10 +906,7 @@
         "properties": {
           "source": {
             "type": "string",
-            "enum": [
-              "live",
-              "fixed"
-            ]
+            "enum": ["live", "fixed"]
           },
           "updatedAt": {
             "type": "string",
@@ -1021,23 +922,11 @@
               "properties": {
                 "from": {
                   "type": "string",
-                  "enum": [
-                    "cNGN",
-                    "cGHS",
-                    "cXAF",
-                    "USDx",
-                    "EURx"
-                  ]
+                  "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
                 },
                 "to": {
                   "type": "string",
-                  "enum": [
-                    "cNGN",
-                    "cGHS",
-                    "cXAF",
-                    "USDx",
-                    "EURx"
-                  ]
+                  "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
                 },
                 "rate": {
                   "type": "string",
@@ -1049,20 +938,11 @@
                   "format": "date-time"
                 }
               },
-              "required": [
-                "from",
-                "to",
-                "rate",
-                "updatedAt"
-              ]
+              "required": ["from", "to", "rate", "updatedAt"]
             }
           }
         },
-        "required": [
-          "source",
-          "updatedAt",
-          "rates"
-        ]
+        "required": ["source", "updatedAt", "rates"]
       },
       "Balances": {
         "type": "object",
@@ -1082,13 +962,7 @@
               "properties": {
                 "currency": {
                   "type": "string",
-                  "enum": [
-                    "cNGN",
-                    "cGHS",
-                    "cXAF",
-                    "USDx",
-                    "EURx"
-                  ]
+                  "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
                 },
                 "amount": {
                   "type": "string",
@@ -1101,11 +975,7 @@
                   "example": "100.000000"
                 }
               },
-              "required": [
-                "currency",
-                "amount",
-                "usdValue"
-              ]
+              "required": ["currency", "amount", "usdValue"]
             }
           },
           "totalUsd": {
@@ -1115,23 +985,14 @@
           },
           "rateSource": {
             "type": "string",
-            "enum": [
-              "live",
-              "fixed"
-            ]
+            "enum": ["live", "fixed"]
           },
           "rateUpdatedAt": {
             "type": "string",
             "format": "date-time"
           }
         },
-        "required": [
-          "walletId",
-          "balances",
-          "totalUsd",
-          "rateSource",
-          "rateUpdatedAt"
-        ]
+        "required": ["walletId", "balances", "totalUsd", "rateSource", "rateUpdatedAt"]
       },
       "History": {
         "type": "object",
@@ -1154,12 +1015,7 @@
             "type": "integer"
           }
         },
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ]
+        "required": ["items", "total", "limit", "offset"]
       },
       "Health": {
         "type": "object",
@@ -1167,14 +1023,10 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": [
-              "ok"
-            ]
+            "enum": ["ok"]
           }
         },
-        "required": [
-          "status"
-        ]
+        "required": ["status"]
       }
     }
   }
