@@ -7,6 +7,7 @@ import { APP_CONFIG, readConfig } from './config';
 import { Database } from './database';
 import { DomainError, ErrorFilter } from './errors';
 import { WalletsController, WalletsService } from './wallets';
+import { TransactionsController, TransactionsService } from './transactions';
 
 @Controller()
 class HealthController {
@@ -24,8 +25,13 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, WalletsController],
-  providers: [{ provide: APP_CONFIG, useFactory: () => readConfig() }, Database, WalletsService],
+  controllers: [HealthController, WalletsController, TransactionsController],
+  providers: [
+    { provide: APP_CONFIG, useFactory: () => readConfig() },
+    Database,
+    WalletsService,
+    TransactionsService,
+  ],
 })
 export class AppModule {}
 
