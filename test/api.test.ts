@@ -217,3 +217,96 @@ describe('swaps', () => {
     expect(records.rowCount).toBe(0);
   });
 });
+
+function transfer(
+  id: string,
+  recipientWalletId: string,
+  value: string,
+  from = 'USDx',
+  to = 'USDx',
+  key = randomUUID(),
+) {
+  return request(app.getHttpServer())
+    .post(`/wallets/${id}/transfers`)
+    .set('Idempotency-Key', key)
+    .send({ recipientWalletId, fromCurrency: from, toCurrency: to, amount: value });
+}
+describe('transfers', () => {
+  it('moves same-currency funds once and scopes keys to the sending wallet', async () => {
+    const sender = await wallet();
+    const recipient = await wallet();
+    await deposit(sender, '10').expect(201);
+    const key = randomUUID();
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => transfer(sender, recipient, '3', 'USDx', 'USDx', key)),
+    );
+    expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(results.filter((r) => r.status === 200)).toHaveLength(7);
+    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
+    expect(results[0]!.body).toMatchObject({
+      type: 'transfer',
+      sourceWalletId: sender,
+      destinationWalletId: recipient,
+      sourceAmount: '3.000000',
+      destinationAmount: '3.000000',
+      rate: '1.000000000000',
+      rateSource: null,
+      rateUpdatedAt: null,
+    });
+    expect(await amount(sender)).toBe('7.000000');
+    expect(await amount(recipient)).toBe('3.000000');
+    await transfer(sender, recipient, '4', 'USDx', 'USDx', key).expect(409);
+    // The other wallet can independently use the same key.
+    await transfer(recipient, sender, '1', 'USDx', 'USDx', key).expect(201);
+    expect(await amount(sender)).toBe('8.000000');
+    expect(await amount(recipient)).toBe('2.000000');
+  });
+  it('stores both participants, currencies, amounts and rate in a cross-currency transfer', async () => {
+    const sender = await wallet();
+    const recipient = await wallet();
+    await deposit(sender, '1600', randomUUID(), 'cNGN').expect(201);
+    const response = await transfer(sender, recipient, '1600', 'cNGN', 'cGHS').expect(201);
+    expect(response.body).toMatchObject({
+      sourceWalletId: sender,
+      destinationWalletId: recipient,
+      sourceCurrency: 'cNGN',
+      destinationCurrency: 'cGHS',
+      sourceAmount: '1600.000000',
+      destinationAmount: '15.000000',
+      rate: '0.009375000000',
+      rateSource: 'fixed',
+      rateUpdatedAt: '2026-10-29T00:00:00.000Z',
+    });
+    expect(Date.parse(response.body.createdAt)).toBeGreaterThan(0);
+    expect(await amount(sender, 'cNGN')).toBe('0.000000');
+    expect(await amount(recipient, 'cGHS')).toBe('15.000000');
+  });
+  it('rejects insufficient funds, unknown recipients and self-transfers without changing balances', async () => {
+    const sender = await wallet();
+    const recipient = await wallet();
+    await deposit(sender, '1').expect(201);
+    await transfer(sender, recipient, '2').expect(422);
+    await transfer(sender, randomUUID(), '1').expect(404);
+    await transfer(sender, sender, '1').expect(400);
+    await transfer(sender, recipient, '1', 'USDx', 'BTC').expect(400);
+    expect(await amount(sender)).toBe('1.000000');
+    expect(await amount(recipient)).toBe('0.000000');
+  });
+  it('rolls back the sender debit and leaves no transfer record on recipient overflow', async () => {
+    const sender = await wallet();
+    const recipient = await wallet();
+    await deposit(sender, '1').expect(201);
+    await deposit(recipient, '999999999999999999.999999').expect(201);
+    const key = randomUUID();
+    await transfer(sender, recipient, '1', 'USDx', 'USDx', key).expect(422);
+    expect(await amount(sender)).toBe('1.000000');
+    expect(await amount(recipient)).toBe('999999999999999999.999999');
+    const result = await app
+      .get(Database)
+      .query('SELECT id FROM transactions WHERE source_wallet_id=$1', [sender]);
+    expect(result.rowCount).toBe(0);
+    // Free capacity and retry the failed key: rollback did not consume it.
+    await transfer(recipient, sender, '1').expect(201);
+    await transfer(sender, recipient, '1', 'USDx', 'USDx', key).expect(201);
+  });
+});

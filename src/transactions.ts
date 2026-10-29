@@ -18,6 +18,14 @@ import {
 } from './money';
 
 const depositSchema = z.object({ currency: currencySchema, amount: amountSchema }).strict();
+const transferSchema = z
+  .object({
+    recipientWalletId: uuidSchema,
+    fromCurrency: currencySchema,
+    toCurrency: currencySchema,
+    amount: amountSchema,
+  })
+  .strict();
 const swapSchema = z
   .object({ fromCurrency: currencySchema, toCurrency: currencySchema, amount: amountSchema })
   .strict()
@@ -134,12 +142,31 @@ export class TransactionsService {
   }
 
   private async quote(from: Currency, to: Currency): Promise<RateQuote> {
+    if (from === to) return identityQuote;
     const snapshot = await this.fx.snapshot();
     return {
       rate: this.fx.rate(snapshot, from, to),
       source: snapshot.source,
       updatedAt: snapshot.updatedAt,
     };
+  }
+
+  async transfer(walletId: string, body: unknown, rawKey: unknown) {
+    const input = transferSchema.parse(body);
+    if (input.recipientWalletId === walletId)
+      throw new DomainError(400, 'SAME_WALLET', 'Recipient must be a different wallet.');
+    return this.move(
+      {
+        type: 'transfer',
+        walletId,
+        recipientId: input.recipientWalletId,
+        from: input.fromCurrency,
+        to: input.toCurrency,
+        amount: input.amount,
+      },
+      rawKey,
+      () => this.quote(input.fromCurrency, input.toCurrency),
+    );
   }
 
   private async move(
@@ -291,6 +318,20 @@ export class TransactionsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.transactions.swap(uuidSchema.parse(walletId), body, key);
+    response
+      .status(result.replayed ? 200 : 201)
+      .setHeader('Idempotency-Replayed', String(result.replayed));
+    return result.transaction;
+  }
+
+  @Post('transfers')
+  async transfer(
+    @Param('walletId') walletId: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.transactions.transfer(uuidSchema.parse(walletId), body, key);
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
