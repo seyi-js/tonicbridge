@@ -3,7 +3,7 @@ import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { createApp } from '../src/app';
 import { Database } from '../src/database';
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 
 let app: INestApplication;
 beforeAll(async () => {
@@ -28,7 +28,7 @@ describe('wallets', () => {
     await request(app.getHttpServer()).post('/wallets').send({ email }).expect(409);
   });
   it('protects email and phone uniqueness under concurrent creation', async () => {
-    const phone = '+2348012345678';
+    const phone = `+2348${randomInt(100000000, 1000000000)}`;
     const responses = await Promise.all(
       Array.from({ length: 5 }, () =>
         request(app.getHttpServer()).post('/wallets').send({ phone }),

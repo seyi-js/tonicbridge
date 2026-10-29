@@ -12,7 +12,7 @@ const valid = () => ({
   date: new Date().toISOString().slice(0, 10),
   usd: { usd: 1, ngn: 1500, ghs: 12, xaf: 580, eur: 0.92 },
 });
-async function provider(body: unknown, status = 200, delay = 0) {
+async function provider(body: unknown, status = 200, delay = 0, timeout = 1000) {
   let calls = 0;
   const server = createServer((req, res) => {
     calls++;
@@ -37,7 +37,7 @@ async function provider(body: unknown, status = 200, delay = 0) {
     ...readConfig({}),
     FX_MODE: 'live' as const,
     FX_BASE_URL: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
-    FX_TIMEOUT_MS: 80,
+    FX_TIMEOUT_MS: timeout,
   };
   return { service: new FxService(config), calls: () => calls };
 }
@@ -77,7 +77,7 @@ describe('FX HTTP adapter', () => {
     }
   });
   it('bounds time spent waiting for the provider', async () => {
-    const { service } = await provider(valid(), 200, 200);
+    const { service } = await provider(valid(), 200, 300, 80);
     const start = Date.now();
     expect((await service.snapshot()).source).toBe('fixed');
     expect(Date.now() - start).toBeLessThan(1000);
