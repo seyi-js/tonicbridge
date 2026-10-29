@@ -116,6 +116,24 @@ describe('deposits', () => {
     expect(records.rowCount).toBe(0);
   });
 });
+
+describe('rates and balances', () => {
+  it('returns exact balances and USD valuation from one labelled rate snapshot', async () => {
+    const id = await wallet();
+    await deposit(id, '1600', randomUUID(), 'cNGN').expect(201);
+    await deposit(id, '2').expect(201);
+    const response = await request(app.getHttpServer()).get(`/wallets/${id}/balances`).expect(200);
+    expect(response.body.totalUsd).toBe('3.000000');
+    expect(response.body.balances).toHaveLength(5);
+    expect(response.body.rateSource).toBe('fixed');
+    expect(
+      response.body.balances.find((b: { currency: string }) => b.currency === 'cNGN').usdValue,
+    ).toBe('1.000000');
+    const rates = await request(app.getHttpServer()).get('/rates').expect(200);
+    expect(rates.body.rates).toHaveLength(25);
+    await request(app.getHttpServer()).get(`/wallets/${randomUUID()}/balances`).expect(404);
+  });
+});
 afterAll(async () => {
   await app?.close();
 });
