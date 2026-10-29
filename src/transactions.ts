@@ -4,6 +4,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { Database } from './database';
 import { DomainError } from './errors';
+import { FxService } from './fx';
 import {
   amountSchema,
   converted,
@@ -17,6 +18,13 @@ import {
 } from './money';
 
 const depositSchema = z.object({ currency: currencySchema, amount: amountSchema }).strict();
+const swapSchema = z
+  .object({ fromCurrency: currencySchema, toCurrency: currencySchema, amount: amountSchema })
+  .strict()
+  .refine((input) => input.fromCurrency !== input.toCurrency, {
+    message: 'Swap currencies must be different.',
+    path: ['toCurrency'],
+  });
 const keySchema = z
   .string()
   .regex(
@@ -89,7 +97,10 @@ export function transactionView(row: TransactionRow) {
 
 @Injectable()
 export class TransactionsService {
-  constructor(@Inject(Database) private readonly db: Database) {}
+  constructor(
+    @Inject(Database) private readonly db: Database,
+    @Inject(FxService) private readonly fx: FxService,
+  ) {}
 
   async deposit(walletId: string, body: unknown, rawKey: unknown) {
     const input = depositSchema.parse(body);
@@ -104,6 +115,31 @@ export class TransactionsService {
       },
       rawKey,
     );
+  }
+
+  async swap(walletId: string, body: unknown, rawKey: unknown) {
+    const input = swapSchema.parse(body);
+    return this.move(
+      {
+        type: 'swap',
+        walletId,
+        recipientId: walletId,
+        from: input.fromCurrency,
+        to: input.toCurrency,
+        amount: input.amount,
+      },
+      rawKey,
+      () => this.quote(input.fromCurrency, input.toCurrency),
+    );
+  }
+
+  private async quote(from: Currency, to: Currency): Promise<RateQuote> {
+    const snapshot = await this.fx.snapshot();
+    return {
+      rate: this.fx.rate(snapshot, from, to),
+      source: snapshot.source,
+      updatedAt: snapshot.updatedAt,
+    };
   }
 
   private async move(
@@ -241,6 +277,20 @@ export class TransactionsController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.transactions.deposit(uuidSchema.parse(walletId), body, key);
+    response
+      .status(result.replayed ? 200 : 201)
+      .setHeader('Idempotency-Replayed', String(result.replayed));
+    return result.transaction;
+  }
+
+  @Post('swaps')
+  async swap(
+    @Param('walletId') walletId: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.transactions.swap(uuidSchema.parse(walletId), body, key);
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
