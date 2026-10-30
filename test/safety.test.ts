@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
-import { createApp } from '../src/app';
-import { Database } from '../src/database';
+import { createApp } from '../src/bootstrap';
+import { Database } from '../src/database/database.service';
 
 let first: INestApplication;
 let second: INestApplication;

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createApp } from '../dist/app.js';
+import { createApp } from '../dist/bootstrap.js';
 import { smoke } from './smoke.mjs';
 
 // Requires the local Postman simulation and PostgreSQL. Uses the real API and its native fetch adapter.

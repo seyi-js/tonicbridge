@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
-import { readConfig } from '../src/config';
-import { FxService } from '../src/fx';
+import { readConfig } from '../src/config/app-config';
+import { FxService } from '../src/modules/fx/fx.service';
 
 const cleanup: Array<() => Promise<void>> = [];
 afterEach(async () => {

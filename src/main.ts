@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { createApp } from './app';
-import { readConfig } from './config';
+import { createApp } from './bootstrap';
+import { readConfig } from './config/app-config';
 
 async function main() {
   const app = await createApp();

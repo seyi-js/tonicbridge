@@ -1,9 +1,7 @@
-import { Controller, Get, Inject, Injectable, Logger, Param } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
-import { APP_CONFIG, AppConfig } from './config';
-import { currencies, Currency, D, money, uuidSchema } from './money';
-import { WalletsService } from './wallets';
-
+import { APP_CONFIG, AppConfig } from '../../config/app-config';
+import { currencies, Currency, D } from '../../common/money';
 export interface RateSnapshot {
   source: 'live' | 'fixed';
 
@@ -129,41 +127,6 @@ export class FxService {
           updatedAt: snapshot.updatedAt,
         })),
       ),
-    };
-  }
-}
-
-@Controller()
-export class FxController {
-  constructor(
-    @Inject(FxService) private readonly fx: FxService,
-    @Inject(WalletsService) private readonly wallets: WalletsService,
-  ) {}
-
-  @Get('rates')
-  rates() {
-    return this.fx.rates();
-  }
-
-  @Get('wallets/:walletId/balances')
-  async balances(@Param('walletId') walletId: string) {
-    const id = uuidSchema.parse(walletId);
-    const rows = await this.wallets.balances(id);
-    const snapshot = await this.fx.snapshot();
-    const balances = currencies.map((currency) => {
-      const amount = rows.find((row) => row.currency === currency)!.amount;
-      return {
-        currency,
-        amount,
-        usdValue: money(new D(amount).times(this.fx.rate(snapshot, currency, 'USDx'))),
-      };
-    });
-    return {
-      walletId: id,
-      balances,
-      totalUsd: money(balances.reduce((sum, row) => sum.plus(row.usdValue), new D(0))),
-      rateSource: snapshot.source,
-      rateUpdatedAt: snapshot.updatedAt,
     };
   }
 }

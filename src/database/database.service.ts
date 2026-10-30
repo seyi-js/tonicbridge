@@ -2,7 +2,7 @@ import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Pool, PoolClient, QueryResultRow } from 'pg';
-import { APP_CONFIG, AppConfig } from './config';
+import { APP_CONFIG, AppConfig } from '../config/app-config';
 
 export async function migrate(pool: Pool): Promise<void> {
   const client = await pool.connect();

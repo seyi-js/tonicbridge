@@ -6,7 +6,7 @@ import Ajv, { ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import request, { Response } from 'supertest';
 import { randomUUID } from 'node:crypto';
-import { createApp } from '../src/app';
+import { createApp } from '../src/bootstrap';
 
 let app: INestApplication;
 let spec: OpenAPIV3.Document;

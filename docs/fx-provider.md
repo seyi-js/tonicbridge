@@ -15,7 +15,7 @@ Required response shape:
 
 The numbers above are synthetic test values. Additional currency keys are ignored. All required values must be finite, positive, within 0.000001–1000000000, and USD must equal 1. Every derived pair must remain positive at the supported 12-place rate precision. Dates must be valid UTC dates, no more than three days old or five minutes into the future. Responses are capped at 256 KiB and requests (including response bodies) time out after 2.5 seconds by default. Redirects are rejected. `FX_BASE_URL` is administrator configuration, never client request input.
 
-Successful snapshots are shared across concurrent requests and cached for one hour per API process. Failure uses the explicit fixed sandbox table for 60 seconds, then permits a refresh. Fixed rates are documented in `src/fx.ts`; their version date is not a claim of market freshness. No last-good rate is silently relabelled as live. Restarting an API process clears its in-memory cache.
+Successful snapshots are shared across concurrent requests and cached for one hour per API process. Failure uses the explicit fixed sandbox table for 60 seconds, then permits a refresh. Fixed rates are documented in `src/modules/fx/fx.service.ts`; their version date is not a claim of market freshness. No last-good rate is silently relabelled as live. Restarting an API process clears its in-memory cache.
 
 Orbit searches returned other providers rather than this endpoint; implementation follows the provider's published README and a live response. The Postman owner-workspace search was unavailable because the CLI was signed out. Local mock examples follow this documented subset; no credentials or paid service are required.
 

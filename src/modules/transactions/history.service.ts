@@ -1,25 +1,8 @@
-import { Controller, Get, Inject, Injectable, Param, Query } from '@nestjs/common';
-import { z } from 'zod';
-import { Database } from './database';
-import { DomainError } from './errors';
-import { currencySchema, uuidSchema } from './money';
-import { TransactionRow, transactionView } from './transactions';
-
-const integerQuery = (minimum: number, maximum: number) =>
-  z
-    .string()
-    .regex(/^(0|[1-9][0-9]*)$/)
-    .transform(Number)
-    .pipe(z.number().int().min(minimum).max(maximum));
-const historySchema = z
-  .object({
-    type: z.enum(['deposit', 'swap', 'transfer']).optional(),
-    currency: currencySchema.optional(),
-    limit: integerQuery(1, 100).default('20'),
-    offset: integerQuery(0, 2147483647).default('0'),
-  })
-  .strict();
-
+import { Inject, Injectable } from '@nestjs/common';
+import { Database } from '../../database/database.service';
+import { DomainError } from '../../common/errors/domain.error';
+import { TransactionRow, transactionView } from './transactions.types';
+import { historySchema } from './dto/history-query.dto';
 @Injectable()
 export class HistoryService {
   constructor(@Inject(Database) private readonly db: Database) {}
@@ -59,20 +42,5 @@ export class HistoryService {
         offset,
       };
     });
-  }
-}
-
-@Controller()
-export class HistoryController {
-  constructor(@Inject(HistoryService) private readonly history: HistoryService) {}
-
-  @Get('wallets/:walletId/transactions')
-  list(@Param('walletId') walletId: string, @Query() query: unknown) {
-    return this.history.list(uuidSchema.parse(walletId), query);
-  }
-
-  @Get('transactions/:transactionId')
-  get(@Param('transactionId') id: string) {
-    return this.history.get(uuidSchema.parse(id));
   }
 }

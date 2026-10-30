@@ -1,108 +1,20 @@
-import { Body, Controller, Headers, Inject, Injectable, Param, Post, Res } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { Response } from 'express';
-import { z } from 'zod';
-import { Database } from './database';
-import { DomainError } from './errors';
-import { FxService } from './fx';
+import { Database } from '../../database/database.service';
+import { DomainError } from '../../common/errors/domain.error';
+import { FxService } from '../fx/fx.service';
+import { converted, currencies, Currency, D, MAX_AMOUNT, money } from '../../common/money';
+import { depositSchema } from './dto/deposit.dto';
+import { swapSchema } from './dto/swap.dto';
+import { transferSchema } from './dto/transfer.dto';
+import { keySchema } from './idempotency';
 import {
-  amountSchema,
-  converted,
-  currencies,
-  Currency,
-  currencySchema,
-  D,
-  MAX_AMOUNT,
-  money,
-  uuidSchema,
-} from './money';
-
-const depositSchema = z.object({ currency: currencySchema, amount: amountSchema }).strict();
-const transferSchema = z
-  .object({
-    recipientWalletId: uuidSchema,
-    fromCurrency: currencySchema,
-    toCurrency: currencySchema,
-    amount: amountSchema,
-  })
-  .strict();
-const swapSchema = z
-  .object({ fromCurrency: currencySchema, toCurrency: currencySchema, amount: amountSchema })
-  .strict()
-  .refine((input) => input.fromCurrency !== input.toCurrency, {
-    message: 'Swap currencies must be different.',
-    path: ['toCurrency'],
-  });
-const keySchema = z
-  .string()
-  .regex(
-    /^[A-Za-z0-9_.:-]{8,128}$/,
-    'Idempotency-Key must contain 8–128 letters, digits, dots, colons, underscores or hyphens.',
-  );
-
-export interface TransactionRow {
-  id: string;
-
-  type: 'deposit' | 'swap' | 'transfer';
-
-  source_wallet_id: string | null;
-
-  destination_wallet_id: string;
-
-  source_currency: Currency;
-
-  destination_currency: Currency;
-
-  source_amount: string;
-
-  destination_amount: string;
-
-  rate: string;
-
-  rate_source: 'live' | 'fixed' | null;
-
-  rate_updated_at: Date | null;
-
-  created_at: Date;
-}
-interface Movement {
-  type: TransactionRow['type'];
-
-  walletId: string;
-
-  recipientId: string;
-
-  from: Currency;
-
-  to: Currency;
-
-  amount: string;
-}
-interface RateQuote {
-  rate: string;
-
-  source: 'live' | 'fixed' | null;
-
-  updatedAt: string | null;
-}
-const identityQuote: RateQuote = { rate: '1.000000000000', source: null, updatedAt: null };
-export function transactionView(row: TransactionRow) {
-  return {
-    id: row.id,
-    type: row.type,
-    sourceWalletId: row.source_wallet_id,
-    destinationWalletId: row.destination_wallet_id,
-    sourceCurrency: row.source_currency,
-    destinationCurrency: row.destination_currency,
-    sourceAmount: row.source_amount,
-    destinationAmount: row.destination_amount,
-    rate: row.rate,
-    rateSource: row.rate_source,
-    rateUpdatedAt: row.rate_updated_at?.toISOString() ?? null,
-    createdAt: row.created_at.toISOString(),
-  };
-}
-
+  TransactionRow,
+  Movement,
+  RateQuote,
+  identityQuote,
+  transactionView,
+} from './transactions.types';
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -289,52 +201,5 @@ export class TransactionsService {
       );
       return { transaction: transactionView(transaction), replayed: false };
     });
-  }
-}
-
-@Controller('wallets/:walletId')
-export class TransactionsController {
-  constructor(@Inject(TransactionsService) private readonly transactions: TransactionsService) {}
-
-  @Post('deposits')
-  async deposit(
-    @Param('walletId') walletId: string,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key: unknown,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const result = await this.transactions.deposit(uuidSchema.parse(walletId), body, key);
-    response
-      .status(result.replayed ? 200 : 201)
-      .setHeader('Idempotency-Replayed', String(result.replayed));
-    return result.transaction;
-  }
-
-  @Post('swaps')
-  async swap(
-    @Param('walletId') walletId: string,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key: unknown,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const result = await this.transactions.swap(uuidSchema.parse(walletId), body, key);
-    response
-      .status(result.replayed ? 200 : 201)
-      .setHeader('Idempotency-Replayed', String(result.replayed));
-    return result.transaction;
-  }
-
-  @Post('transfers')
-  async transfer(
-    @Param('walletId') walletId: string,
-    @Body() body: unknown,
-    @Headers('idempotency-key') key: unknown,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const result = await this.transactions.transfer(uuidSchema.parse(walletId), body, key);
-    response
-      .status(result.replayed ? 200 : 201)
-      .setHeader('Idempotency-Replayed', String(result.replayed));
-    return result.transaction;
   }
 }

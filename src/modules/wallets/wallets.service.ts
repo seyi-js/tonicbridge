@@ -1,48 +1,15 @@
-import { Body, Controller, Get, Inject, Injectable, Param, Post } from '@nestjs/common';
-import { z } from 'zod';
-import { Database } from './database';
-import { DomainError } from './errors';
-import { currencies, Currency, uuidSchema } from './money';
-
-const createSchema = z
-  .object({
-    email: z.string().trim().toLowerCase().email().max(254).optional(),
-    phone: z
-      .string()
-      .trim()
-      .regex(/^\+[1-9][0-9]{7,14}$/)
-      .optional(),
-  })
-  .strict()
-  .refine((v) => v.email || v.phone, 'An email or E.164 phone number is required.');
-
-export interface WalletRow {
-  id: string;
-
-  email: string | null;
-
-  phone: string | null;
-
-  created_at: Date;
-}
-export interface BalanceRow {
-  currency: Currency;
-
-  amount: string;
-}
-export const walletView = (row: WalletRow) => ({
-  id: row.id,
-  email: row.email,
-  phone: row.phone,
-  createdAt: row.created_at.toISOString(),
-});
-
+import { Inject, Injectable } from '@nestjs/common';
+import { Database } from '../../database/database.service';
+import { DomainError } from '../../common/errors/domain.error';
+import { currencies } from '../../common/money';
+import { createWalletSchema } from './dto/create-wallet.dto';
+import { WalletRow, BalanceRow, walletView } from './wallets.types';
 @Injectable()
 export class WalletsService {
   constructor(@Inject(Database) private readonly db: Database) {}
 
   async create(input: unknown) {
-    const data = createSchema.parse(input);
+    const data = createWalletSchema.parse(input);
     try {
       return await this.db.transaction(async (client) => {
         const result = await client.query<WalletRow>(
@@ -80,20 +47,5 @@ export class WalletsService {
       [id],
     );
     return result.rows;
-  }
-}
-
-@Controller('wallets')
-export class WalletsController {
-  constructor(@Inject(WalletsService) private readonly wallets: WalletsService) {}
-
-  @Post()
-  create(@Body() body: unknown) {
-    return this.wallets.create(body);
-  }
-
-  @Get(':walletId')
-  get(@Param('walletId') id: string) {
-    return this.wallets.get(uuidSchema.parse(id));
   }
 }

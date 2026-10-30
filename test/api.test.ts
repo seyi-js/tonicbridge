@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
-import { createApp } from '../src/app';
-import { Database } from '../src/database';
+import { createApp } from '../src/bootstrap';
+import { Database } from '../src/database/database.service';
 import { randomInt, randomUUID } from 'node:crypto';
 
 let app: INestApplication;

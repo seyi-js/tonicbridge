@@ -1,6 +1,6 @@
 import Decimal from 'decimal.js';
 import { z } from 'zod';
-import { DomainError } from './errors';
+import { DomainError } from './errors/domain.error';
 
 export const D = Decimal.clone({ precision: 80, rounding: Decimal.ROUND_DOWN });
 export const currencies = ['cNGN', 'cGHS', 'cXAF', 'USDx', 'EURx'] as const;

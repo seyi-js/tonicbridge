@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { amountSchema, converted } from '../src/money';
+import { amountSchema, converted } from '../src/common/money';
 
 describe('decimal money', () => {
   it('keeps large values exact and rounds conversion down', () => {

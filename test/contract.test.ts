@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import SwaggerParser from '@apidevtools/swagger-parser';
-import { readConfig } from '../src/config';
+import { readConfig } from '../src/config/app-config';
 
 describe('contract and configuration', () => {
   it('publishes a valid OpenAPI contract', async () => {

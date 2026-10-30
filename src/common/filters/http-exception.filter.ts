@@ -2,15 +2,7 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@n
 import { Response } from 'express';
 import { ZodError } from 'zod';
 
-export class DomainError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { DomainError } from '../errors/domain.error';
 
 @Catch()
 export class ErrorFilter implements ExceptionFilter {
