@@ -43,3 +43,7 @@ TonicBridge is a simulated stablecoin wallet API for Operation Borderless. No bl
 ## Verification targets
 
 Tests must prove persisted/reconstructed balances, duplicate identities, exact rounding, idempotent retries and conflicts, rejected negative/invalid amounts, insufficient funds, wallet-not-found behavior, atomic transfers, concurrent overspending protection, opposing transfers, live FX parsing and fallback, history filtering/pagination, and reproducible Docker startup. A fixed FX mode keeps the full test suite independent of the public provider.
+
+## Sequelize migration verification (2026-10-30)
+
+`yarn run check` passed all 34 tests, including concurrent requests across independent API instances, rollback on an injected storage failure, and a restart test that reads pre-ORM rows and replays their existing request key. The production Docker image was also started against the existing database: wallet identities, balances, histories, transaction details, and an old idempotency key matched the responses captured before the upgrade. No schema migration or data conversion was needed. The Postman FX success/error/timeout walkthrough passed with the compiled Sequelize implementation; its observations are in `postman/simulations/fx.context.md`.
