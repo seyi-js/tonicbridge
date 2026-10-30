@@ -4,6 +4,7 @@ import { SwaggerModule, OpenAPIObject } from '@nestjs/swagger';
 import { readFile } from 'node:fs/promises';
 import { AppModule } from './app.module';
 import { ErrorFilter } from './common/filters/http-exception.filter';
+
 export async function createApp() {
   const app = await NestFactory.create(AppModule, {
     logger: ['warn', 'error'],

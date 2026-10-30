@@ -14,6 +14,7 @@ export interface Movement {
 
   amount: string;
 }
+
 export interface RateQuote {
   rate: string;
 
@@ -21,4 +22,5 @@ export interface RateQuote {
 
   updatedAt: string | null;
 }
+
 export const identityQuote: RateQuote = { rate: '1.000000000000', source: null, updatedAt: null };

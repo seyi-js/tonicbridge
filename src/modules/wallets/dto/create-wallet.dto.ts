@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 export const createWalletSchema = z
   .object({
     email: z.string().trim().toLowerCase().email().max(254).optional(),

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { amountSchema, currencySchema, uuidSchema } from '../../../common/money';
+
 export const transferSchema = z
   .object({
     recipientWalletId: uuidSchema,
@@ -8,4 +9,5 @@ export const transferSchema = z
     amount: amountSchema,
   })
   .strict();
+
 export type TransferDto = z.infer<typeof transferSchema>;

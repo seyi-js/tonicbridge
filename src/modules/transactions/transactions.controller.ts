@@ -6,6 +6,7 @@ import { depositSchema, DepositDto } from './dto/deposit.dto';
 import { swapSchema, SwapDto } from './dto/swap.dto';
 import { transferSchema, TransferDto } from './dto/transfer.dto';
 import { TransactionsService } from './transactions.service';
+
 @Controller('wallets/:walletId')
 export class TransactionsController {
   constructor(@Inject(TransactionsService) private readonly transactions: TransactionsService) {}

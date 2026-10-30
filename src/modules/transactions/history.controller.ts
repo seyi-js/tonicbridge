@@ -3,6 +3,7 @@ import { uuidSchema } from '../../common/money';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { historySchema, HistoryQueryDto } from './dto/history-query.dto';
 import { HistoryService } from './history.service';
+
 @Controller()
 export class HistoryController {
   constructor(@Inject(HistoryService) private readonly history: HistoryService) {}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { currencySchema } from '../../../common/money';
+
 const integerQuery = (minimum: number, maximum: number) =>
   z
     .string()

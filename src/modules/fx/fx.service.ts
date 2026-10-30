@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { APP_CONFIG, AppConfig } from '../../config/app-config';
 import { currencies, Currency, D } from '../../common/money';
+
 export interface RateSnapshot {
   source: 'live' | 'fixed';
 

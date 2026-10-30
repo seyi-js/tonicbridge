@@ -15,7 +15,9 @@ const schema = z.object({
   FX_TIMEOUT_MS: z.coerce.number().int().min(50).max(10000).default(2500),
   FX_CACHE_SECONDS: z.coerce.number().int().min(1).max(86400).default(3600),
 });
+
 export type AppConfig = z.infer<typeof schema>;
+
 export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = schema.safeParse(env);
   if (!parsed.success) throw new Error('Invalid configuration; check .env.example.');
