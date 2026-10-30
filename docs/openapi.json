@@ -30,6 +30,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Service is healthy."]
                         }
                       }
                     }
@@ -37,7 +41,7 @@
                 },
                 "example": {
                   "statusCode": 200,
-                  "message": "Request successful.",
+                  "message": "Service is healthy.",
                   "data": {
                     "status": "ok"
                   },
@@ -109,6 +113,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [201]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Wallet created successfully."]
                         }
                       }
                     }
@@ -213,6 +221,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Wallet retrieved successfully."]
                         }
                       }
                     }
@@ -304,6 +316,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Wallet balances retrieved successfully."]
                         }
                       }
                     }
@@ -415,6 +431,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [201]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Deposit completed successfully."]
                         }
                       }
                     }
@@ -444,6 +464,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Deposit completed successfully."]
                         }
                       }
                     }
@@ -626,6 +650,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [201]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Swap completed successfully."]
                         }
                       }
                     }
@@ -655,6 +683,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Swap completed successfully."]
                         }
                       }
                     }
@@ -837,6 +869,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [201]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Transfer completed successfully."]
                         }
                       }
                     }
@@ -866,6 +902,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Transfer completed successfully."]
                         }
                       }
                     }
@@ -1064,6 +1104,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Transactions retrieved successfully."]
                         }
                       }
                     }
@@ -1071,7 +1115,7 @@
                 },
                 "example": {
                   "statusCode": 200,
-                  "message": "Request successful.",
+                  "message": "Transactions retrieved successfully.",
                   "data": [],
                   "meta": {
                     "total": 0,
@@ -1167,6 +1211,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Transaction retrieved successfully."]
                         }
                       }
                     }
@@ -1248,6 +1296,10 @@
                       "properties": {
                         "statusCode": {
                           "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Exchange rates retrieved successfully."]
                         }
                       }
                     }

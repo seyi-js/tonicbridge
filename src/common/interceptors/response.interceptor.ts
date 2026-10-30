@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { Response } from 'express';
 import { map, Observable } from 'rxjs';
 import { PAGINATED_RESPONSE } from '../decorators/paginated-response.decorator';
+import { RESPONSE_MESSAGE } from '../decorators/response-message.decorator';
 import { ApiResponse, PaginatedResult } from '../responses/api-response';
 
 @Injectable()
@@ -15,6 +16,11 @@ export class ResponseInterceptor implements NestInterceptor<unknown, ApiResponse
   ): Observable<ApiResponse<unknown>> {
     const response = context.switchToHttp().getResponse<Response>();
     const paginated = this.reflector.get<boolean>(PAGINATED_RESPONSE, context.getHandler());
+    const message = this.reflector.get<string>(RESPONSE_MESSAGE, context.getHandler());
+
+    if (!message?.trim()) {
+      throw new Error('The endpoint must define a success response message.');
+    }
 
     return next.handle().pipe(
       map((result) => {
@@ -29,7 +35,7 @@ export class ResponseInterceptor implements NestInterceptor<unknown, ApiResponse
 
         return {
           statusCode: response.statusCode,
-          message: 'Request successful.',
+          message,
           data,
           meta,
           errors: [],

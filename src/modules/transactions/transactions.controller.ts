@@ -1,5 +1,6 @@
 import { Controller, Headers, Inject, Post, Res } from '@nestjs/common';
 import { Response } from 'express';
+import { ResponseMessage } from '../../common/decorators/response-message.decorator';
 import { UuidParam, ValidatedBody } from '../../common/decorators/validation.decorators';
 import { depositSchema, DepositDto } from './dto/deposit.dto';
 import { swapSchema, SwapDto } from './dto/swap.dto';
@@ -11,6 +12,7 @@ export class TransactionsController {
   constructor(@Inject(TransactionsService) private readonly transactions: TransactionsService) {}
 
   @Post('deposits')
+  @ResponseMessage('Deposit completed successfully.')
   async deposit(
     @UuidParam('walletId') walletId: string,
     @ValidatedBody(depositSchema) body: DepositDto,
@@ -25,6 +27,7 @@ export class TransactionsController {
   }
 
   @Post('swaps')
+  @ResponseMessage('Swap completed successfully.')
   async swap(
     @UuidParam('walletId') walletId: string,
     @ValidatedBody(swapSchema) body: SwapDto,
@@ -39,6 +42,7 @@ export class TransactionsController {
   }
 
   @Post('transfers')
+  @ResponseMessage('Transfer completed successfully.')
   async transfer(
     @UuidParam('walletId') walletId: string,
     @ValidatedBody(transferSchema) body: TransferDto,

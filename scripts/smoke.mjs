@@ -37,6 +37,8 @@ export async function smoke(baseUrl) {
     key,
   );
   assert.deepEqual(replay.data, deposit.data);
+  assert.equal(deposit.message, 'Deposit completed successfully.');
+  assert.equal(replay.message, deposit.message);
   const swap = await call(
     `/wallets/${a.data.id}/swaps`,
     201,
@@ -58,6 +60,8 @@ export async function smoke(baseUrl) {
     },
     randomUUID(),
   );
+  assert.equal(swap.message, 'Swap completed successfully.');
+  assert.equal(transfer.message, 'Transfer completed successfully.');
   const balances = await call(`/wallets/${a.data.id}/balances`, 200);
   assert.equal(balances.data.balances.find((row) => row.currency === 'USDx').amount, '85.000000');
   assert.equal(
@@ -74,6 +78,7 @@ export async function smoke(baseUrl) {
     200,
   );
   assert.equal(history.meta.total, 1);
+  assert.equal(history.message, 'Transactions retrieved successfully.');
   assert.deepEqual(history.data[0], transfer.data);
   assert.deepEqual((await call(`/transactions/${transfer.data.id}`, 200)).data, transfer.data);
   const rates = await call('/rates', 200);

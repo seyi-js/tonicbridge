@@ -123,14 +123,14 @@ This creates synthetic wallets and verifies deposits, retries, swaps, transfers,
 
 ## Response format
 
-Every API response contains `statusCode`, `message`, `data`, `meta`, and `errors`. `statusCode` matches the HTTP status, including 201 for a new money operation and 200 for an idempotent replay. Ordinary successes have `meta: {}` and `errors: []`.
+Every API response contains `statusCode`, `message`, `data`, `meta`, and `errors`. `statusCode` matches the HTTP status, including 201 for a new money operation and 200 for an idempotent replay. Ordinary successes have `meta: {}` and `errors: []`. Each endpoint defines its success message with `@ResponseMessage(...)`, for example `@ResponseMessage('Swap completed successfully.')`. Idempotent replays retain the endpoint message; their HTTP status and `Idempotency-Replayed` header identify the replay.
 
 An empty transaction history:
 
 ```json
 {
   "statusCode": 200,
-  "message": "Request successful.",
+  "message": "Transactions retrieved successfully.",
   "data": [],
   "meta": { "total": 0, "limit": 20, "offset": 0 },
   "errors": []
@@ -196,7 +196,7 @@ migrations/                       # Versioned SQL schema migrations
 test/                             # HTTP, database, and financial-safety tests
 ```
 
-Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. A global response interceptor formats successful results; the global exception filter formats failures using the same envelope. `@PaginatedResponse()` marks history for moving pagination into `meta`.
+Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. A global response interceptor requires a `@ResponseMessage(...)` on each endpoint and uses it to format successful results; the global exception filter formats failures using the same envelope. `@PaginatedResponse()` marks history for moving pagination into `meta`.
 
 ## Data model and correctness
 
