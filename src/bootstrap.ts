@@ -12,10 +12,16 @@ export async function createApp() {
     abortOnError: false,
   });
   app.useGlobalFilters(new ErrorFilter());
+
   app.useGlobalInterceptors(new ResponseInterceptor());
+
   const spec = JSON.parse(await readFile('docs/openapi.json', 'utf8')) as OpenAPIObject;
+
   SwaggerModule.setup('docs', app, spec, { jsonDocumentUrl: 'openapi.json' });
+
   app.enableShutdownHooks();
+
   await app.init();
+
   return app;
 }
