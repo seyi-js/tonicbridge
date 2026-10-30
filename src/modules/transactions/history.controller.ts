@@ -1,6 +1,5 @@
-import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
-import { uuidSchema } from '../../common/money';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { Controller, Get, Inject } from '@nestjs/common';
+import { UuidParam, ValidatedQuery } from '../../common/decorators/validation.decorators';
 import { historySchema, HistoryQueryDto } from './dto/history-query.dto';
 import { HistoryService } from './history.service';
 
@@ -10,14 +9,14 @@ export class HistoryController {
 
   @Get('wallets/:walletId/transactions')
   list(
-    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
-    @Query(new ZodValidationPipe(historySchema)) query: HistoryQueryDto,
+    @UuidParam('walletId') walletId: string,
+    @ValidatedQuery(historySchema) query: HistoryQueryDto,
   ) {
     return this.history.list(walletId, query);
   }
 
   @Get('transactions/:transactionId')
-  get(@Param('transactionId', new ZodValidationPipe(uuidSchema)) id: string) {
+  get(@UuidParam('transactionId') id: string) {
     return this.history.get(id);
   }
 }

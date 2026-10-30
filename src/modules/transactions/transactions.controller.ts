@@ -1,7 +1,6 @@
-import { Body, Controller, Headers, Inject, Param, Post, Res } from '@nestjs/common';
+import { Controller, Headers, Inject, Post, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { uuidSchema } from '../../common/money';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { UuidParam, ValidatedBody } from '../../common/decorators/validation.decorators';
 import { depositSchema, DepositDto } from './dto/deposit.dto';
 import { swapSchema, SwapDto } from './dto/swap.dto';
 import { transferSchema, TransferDto } from './dto/transfer.dto';
@@ -13,8 +12,8 @@ export class TransactionsController {
 
   @Post('deposits')
   async deposit(
-    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
-    @Body(new ZodValidationPipe(depositSchema)) body: DepositDto,
+    @UuidParam('walletId') walletId: string,
+    @ValidatedBody(depositSchema) body: DepositDto,
     @Headers('idempotency-key') key: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -27,8 +26,8 @@ export class TransactionsController {
 
   @Post('swaps')
   async swap(
-    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
-    @Body(new ZodValidationPipe(swapSchema)) body: SwapDto,
+    @UuidParam('walletId') walletId: string,
+    @ValidatedBody(swapSchema) body: SwapDto,
     @Headers('idempotency-key') key: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -41,8 +40,8 @@ export class TransactionsController {
 
   @Post('transfers')
   async transfer(
-    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
-    @Body(new ZodValidationPipe(transferSchema)) body: TransferDto,
+    @UuidParam('walletId') walletId: string,
+    @ValidatedBody(transferSchema) body: TransferDto,
     @Headers('idempotency-key') key: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {

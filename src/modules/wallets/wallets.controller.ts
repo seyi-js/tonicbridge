@@ -1,6 +1,5 @@
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
-import { uuidSchema } from '../../common/money';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { Controller, Get, Inject, Post } from '@nestjs/common';
+import { UuidParam, ValidatedBody } from '../../common/decorators/validation.decorators';
 import { createWalletSchema, CreateWalletDto } from './dto/create-wallet.dto';
 import { WalletsService } from './wallets.service';
 import { BalancesService } from './balances.service';
@@ -13,17 +12,17 @@ export class WalletsController {
   ) {}
 
   @Post()
-  create(@Body(new ZodValidationPipe(createWalletSchema)) body: CreateWalletDto) {
+  create(@ValidatedBody(createWalletSchema) body: CreateWalletDto) {
     return this.wallets.create(body);
   }
 
   @Get(':walletId')
-  get(@Param('walletId', new ZodValidationPipe(uuidSchema)) id: string) {
+  get(@UuidParam('walletId') id: string) {
     return this.wallets.get(id);
   }
 
   @Get(':walletId/balances')
-  getBalances(@Param('walletId', new ZodValidationPipe(uuidSchema)) id: string) {
+  getBalances(@UuidParam('walletId') id: string) {
     return this.balances.get(id);
   }
 }

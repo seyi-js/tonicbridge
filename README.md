@@ -133,6 +133,7 @@ src/
   config/                         # Validated environment configuration
   database/                       # Sequelize connection and migration runner
   common/
+    decorators/                   # Validated body, query, and UUID parameters
     errors/                       # Domain errors
     filters/                      # HTTP error responses
     pipes/                        # DTO validation and normalization
@@ -161,7 +162,7 @@ migrations/                       # Versioned SQL schema migrations
 test/                             # HTTP, database, and financial-safety tests
 ```
 
-Controllers validate DTOs through a Zod pipe and delegate to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. The OpenAPI contract is unchanged by the ORM migration.
+Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. The OpenAPI contract is unchanged by the ORM migration.
 
 ## Data model and correctness
 
