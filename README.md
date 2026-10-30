@@ -123,7 +123,7 @@ This creates synthetic wallets and verifies deposits, retries, swaps, transfers,
 
 ## Response format
 
-Every API response contains `statusCode`, `message`, `data`, `meta`, and `errors`. `statusCode` matches the HTTP status, including 201 for a new money operation and 200 for an idempotent replay. Ordinary successes have `meta: {}` and `errors: []`. Each endpoint defines its success message with `@ResponseMessage(...)`, for example `@ResponseMessage('Swap completed successfully.')`. Idempotent replays retain the endpoint message; their HTTP status and `Idempotency-Replayed` header identify the replay.
+Every API response contains `statusCode`, `message`, `data`, `meta`, and `errors`. `statusCode` matches the HTTP status, including 201 for a new money operation and 200 for an idempotent replay. Ordinary successes have `meta: {}` and `errors: []`. Each endpoint returns `{data, message, meta?}` directly; `meta` is optional. Idempotent replays retain the endpoint message; their HTTP status and `Idempotency-Replayed` header identify the replay.
 
 An empty transaction history:
 
@@ -165,11 +165,11 @@ src/
   config/                         # Validated environment configuration
   database/                       # Sequelize connection and migration runner
   common/
-    decorators/                   # Input validation and paginated response metadata
+    decorators/                   # Input validation
     errors/                       # Domain errors
     filters/                      # Uniform HTTP error responses
     interceptors/                 # Uniform success responses
-    responses/                    # Shared envelope and pagination types
+    responses/                    # Controller contract, envelope, and pagination types
     pipes/                        # DTO validation and normalization
     money.ts                      # Decimal arithmetic and shared schemas
   modules/
@@ -196,7 +196,25 @@ migrations/                       # Versioned SQL schema migrations
 test/                             # HTTP, database, and financial-safety tests
 ```
 
-Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. A global response interceptor requires a `@ResponseMessage(...)` on each endpoint and uses it to format successful results; the global exception filter formats failures using the same envelope. `@PaginatedResponse()` marks history for moving pagination into `meta`.
+Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. Each controller implements `ControllerContract<ControllerClass>`, which checks the return type of every public method, including methods added later. Methods return `ControllerResponse<T>` (or a promise of it): required `data` and `message`, with optional `meta`. Private helpers are outside that contract. The interceptor adds the HTTP status, defaults missing metadata to `{}`, and supplies `errors: []`; the exception filter formats failures using the same envelope. The history controller returns its transaction array and pagination metadata explicitly.
+
+For example, a controller can return a paginated result directly:
+
+```ts
+export class HistoryController implements ControllerContract<HistoryController> {
+  // Constructor and route/validation decorators omitted here.
+  async list(walletId: string, query: HistoryQueryDto) {
+    const { items, total, limit, offset } = await this.history.list(walletId, query);
+    return {
+      data: items,
+      message: 'Transactions retrieved successfully.',
+      meta: { total, limit, offset },
+    };
+  }
+}
+```
+
+`yarn typecheck` also checks `test/types/controller-contract.ts`: valid synchronous/asynchronous returns compile, while missing data/message, raw results, invalid metadata, and incomplete return branches must produce compiler errors. No separate list of endpoint names needs updating.
 
 ## Data model and correctness
 

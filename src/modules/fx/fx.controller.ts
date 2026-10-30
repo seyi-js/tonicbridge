@@ -1,14 +1,14 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { ResponseMessage } from '../../common/decorators/response-message.decorator';
+import { ControllerContract } from '../../common/responses/controller-response';
 import { FxService } from './fx.service';
 
 @Controller('rates')
-export class FxController {
+export class FxController implements ControllerContract<FxController> {
   constructor(@Inject(FxService) private readonly fx: FxService) {}
 
   @Get()
-  @ResponseMessage('Exchange rates retrieved successfully.')
-  rates() {
-    return this.fx.rates();
+  async rates() {
+    const data = await this.fx.rates();
+    return { data, message: 'Exchange rates retrieved successfully.' };
   }
 }

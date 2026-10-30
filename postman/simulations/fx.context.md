@@ -31,6 +31,8 @@ Wait for the `listening` event before running the check. `SIMULATION_URL` overri
 
 <!-- begin:observations -->
 
+2026-10-30: Verified the uncommitted controller-return refactor based on `8d15eef`. The compiled app passed the normal, 503, and timeout walkthroughs with controllers returning data/message/meta directly. Response messages, pagination, and idempotent replays matched the existing assertions; the normal member logged its expected GET and injected failures answered before their handlers.
+
 2026-10-30: Repeated the compiled FX walkthrough after adding endpoint-defined success messages. The normal, 503, and timeout scenarios passed the new exact-message assertions for deposits, deposit replays, swaps, transfers, and history. The normal member logged the expected GET; the injected failures again answered before their handlers.
 
 2026-10-30: After the uniform response change, `node scripts/check-fx.mjs` passed with the compiled app, real local PostgreSQL, and Postman CLI 1.73.0. The smoke walkthrough asserted the envelope fields and matching HTTP/body status on every API call, verified history pagination in `meta`, and compared transaction `data` across creation and replay. The simulation logged the expected GET for `fx`; the injected 503 and latency conditions answered before their handlers. All three scenarios persisted the expected live/fixed conversions. This verifies the app against these fixtures, not the public provider's current availability.
