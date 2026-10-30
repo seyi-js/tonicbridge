@@ -1,6 +1,10 @@
 import { Body, Controller, Headers, Inject, Param, Post, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { uuidSchema } from '../../common/money';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { depositSchema, DepositDto } from './dto/deposit.dto';
+import { swapSchema, SwapDto } from './dto/swap.dto';
+import { transferSchema, TransferDto } from './dto/transfer.dto';
 import { TransactionsService } from './transactions.service';
 @Controller('wallets/:walletId')
 export class TransactionsController {
@@ -8,12 +12,12 @@ export class TransactionsController {
 
   @Post('deposits')
   async deposit(
-    @Param('walletId') walletId: string,
-    @Body() body: unknown,
+    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
+    @Body(new ZodValidationPipe(depositSchema)) body: DepositDto,
     @Headers('idempotency-key') key: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.transactions.deposit(uuidSchema.parse(walletId), body, key);
+    const result = await this.transactions.deposit(walletId, body, key);
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
@@ -22,12 +26,12 @@ export class TransactionsController {
 
   @Post('swaps')
   async swap(
-    @Param('walletId') walletId: string,
-    @Body() body: unknown,
+    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
+    @Body(new ZodValidationPipe(swapSchema)) body: SwapDto,
     @Headers('idempotency-key') key: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.transactions.swap(uuidSchema.parse(walletId), body, key);
+    const result = await this.transactions.swap(walletId, body, key);
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
@@ -36,12 +40,12 @@ export class TransactionsController {
 
   @Post('transfers')
   async transfer(
-    @Param('walletId') walletId: string,
-    @Body() body: unknown,
+    @Param('walletId', new ZodValidationPipe(uuidSchema)) walletId: string,
+    @Body(new ZodValidationPipe(transferSchema)) body: TransferDto,
     @Headers('idempotency-key') key: unknown,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.transactions.transfer(uuidSchema.parse(walletId), body, key);
+    const result = await this.transactions.transfer(walletId, body, key);
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));

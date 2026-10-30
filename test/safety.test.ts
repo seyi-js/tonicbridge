@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { randomUUID } from 'node:crypto';
 import { createApp } from '../src/bootstrap';
-import { Database } from '../src/database/database.service';
+import { database } from './helpers/database';
 
 let first: INestApplication;
 let second: INestApplication;
@@ -29,9 +29,10 @@ function write(app: INestApplication, id: string, route: string, body: object, k
     .send(body);
 }
 async function balance(id: string, currency = 'USDx') {
-  const rows = await first
-    .get(Database)
-    .query('SELECT amount FROM balances WHERE wallet_id=$1 AND currency=$2', [id, currency]);
+  const rows = await database(first).query(
+    'SELECT amount FROM balances WHERE wallet_id=$1 AND currency=$2',
+    [id, currency],
+  );
   return rows.rows[0]!.amount as string;
 }
 const move = (recipientWalletId: string, amount = '1') => ({
@@ -60,15 +61,13 @@ describe('financial safety across independent API instances', () => {
     expect(results.filter((r) => r.status === 201)).toHaveLength(3);
     expect(results.filter((r) => r.status === 422)).toHaveLength(17);
     expect(await balance(source)).toBe('10.000000');
-    const spent = await first
-      .get(Database)
-      .query(
-        'SELECT sum(source_amount)::text AS amount FROM transactions WHERE source_wallet_id=$1',
-        [source],
-      );
+    const spent = await database(first).query(
+      'SELECT sum(source_amount)::text AS amount FROM transactions WHERE source_wallet_id=$1',
+      [source],
+    );
     expect(spent.rows[0]!.amount).toBe('90.000000');
     // Reconstruct every balance from persisted credits and debits, independently of the service.
-    const mismatches = await first.get(Database).query(
+    const mismatches = await database(first).query(
       `
       WITH entries AS (
         SELECT destination_wallet_id AS wallet_id, destination_currency AS currency, destination_amount AS amount FROM transactions
@@ -115,7 +114,7 @@ describe('financial safety across independent API instances', () => {
     const a = await wallet();
     const b = await wallet();
     await write(first, a, 'deposits', { currency: 'USDx', amount: '10' }).expect(201);
-    const db = first.get(Database);
+    const db = database(first);
     const key = randomUUID();
     // A scoped PostgreSQL trigger injects a real storage error after the service has updated balances.
     await db.query(`CREATE FUNCTION test_reject_transaction() RETURNS trigger LANGUAGE plpgsql AS $$

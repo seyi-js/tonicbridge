@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { INestApplication } from '@nestjs/common';
 import { createApp } from '../src/bootstrap';
-import { Database } from '../src/database/database.service';
+import { database } from './helpers/database';
 import { randomInt, randomUUID } from 'node:crypto';
 
 let app: INestApplication;
@@ -19,9 +19,9 @@ describe('wallets', () => {
       .send({ email: ` ${email.toUpperCase()} ` })
       .expect(201);
     expect(result.body.email).toBe(email);
-    const stored = await app
-      .get(Database)
-      .query('SELECT amount FROM balances WHERE wallet_id=$1', [result.body.id]);
+    const stored = await database(app).query('SELECT amount FROM balances WHERE wallet_id=$1', [
+      result.body.id,
+    ]);
     expect(stored.rows).toHaveLength(5);
     expect(stored.rows.every((r) => r.amount === '0.000000')).toBe(true);
     await request(app.getHttpServer()).get(`/wallets/${result.body.id}`).expect(200);
@@ -61,9 +61,10 @@ async function wallet() {
   return res.body.id as string;
 }
 async function amount(walletId: string, currency = 'USDx') {
-  const res = await app
-    .get(Database)
-    .query('SELECT amount FROM balances WHERE wallet_id=$1 AND currency=$2', [walletId, currency]);
+  const res = await database(app).query(
+    'SELECT amount FROM balances WHERE wallet_id=$1 AND currency=$2',
+    [walletId, currency],
+  );
   return res.rows[0]?.amount as string;
 }
 function deposit(id: string, value: unknown, key = randomUUID(), currency = 'USDx') {
@@ -110,9 +111,10 @@ describe('deposits', () => {
     const key = randomUUID();
     await deposit(id, '0.000001', key).expect(422);
     expect(await amount(id)).toBe('999999999999999999.999999');
-    const records = await app
-      .get(Database)
-      .query('SELECT * FROM idempotency_requests WHERE wallet_id=$1 AND key=$2', [id, key]);
+    const records = await database(app).query(
+      'SELECT * FROM idempotency_requests WHERE wallet_id=$1 AND key=$2',
+      [id, key],
+    );
     expect(records.rowCount).toBe(0);
   });
 });
@@ -211,9 +213,10 @@ describe('swaps', () => {
     expect(result.body.code).toBe('BALANCE_LIMIT');
     expect(await amount(id)).toBe('1.000000');
     expect(await amount(id, 'cNGN')).toBe('999999999999999999.999999');
-    const records = await app
-      .get(Database)
-      .query('SELECT * FROM idempotency_requests WHERE wallet_id=$1 AND key=$2', [id, key]);
+    const records = await database(app).query(
+      'SELECT * FROM idempotency_requests WHERE wallet_id=$1 AND key=$2',
+      [id, key],
+    );
     expect(records.rowCount).toBe(0);
   });
 });
@@ -301,9 +304,10 @@ describe('transfers', () => {
     await transfer(sender, recipient, '1', 'USDx', 'USDx', key).expect(422);
     expect(await amount(sender)).toBe('1.000000');
     expect(await amount(recipient)).toBe('999999999999999999.999999');
-    const result = await app
-      .get(Database)
-      .query('SELECT id FROM transactions WHERE source_wallet_id=$1', [sender]);
+    const result = await database(app).query(
+      'SELECT id FROM transactions WHERE source_wallet_id=$1',
+      [sender],
+    );
     expect(result.rowCount).toBe(0);
     // Free capacity and retry the failed key: rollback did not consume it.
     await transfer(recipient, sender, '1').expect(201);
@@ -357,12 +361,10 @@ describe('transaction history', () => {
   it('breaks timestamp ties by transaction ID descending', async () => {
     const id = await wallet();
     const results = await Promise.all(Array.from({ length: 3 }, () => deposit(id, '1')));
-    await app
-      .get(Database)
-      .query(
-        "UPDATE transactions SET created_at='2026-10-01T00:00:00Z' WHERE destination_wallet_id=$1",
-        [id],
-      );
+    await database(app).query(
+      "UPDATE transactions SET created_at='2026-10-01T00:00:00Z' WHERE destination_wallet_id=$1",
+      [id],
+    );
     const read = await request(app.getHttpServer())
       .get(`/wallets/${id}/transactions?limit=2&offset=1`)
       .expect(200);

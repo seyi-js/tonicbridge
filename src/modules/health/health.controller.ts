@@ -1,14 +1,16 @@
-import { Controller, Get, Inject } from '@nestjs/common';
-import { Database } from '../../database/database.service';
+import { Controller, Get } from '@nestjs/common';
+import { InjectConnection } from '@nestjs/sequelize';
+import { Sequelize } from 'sequelize-typescript';
 import { DomainError } from '../../common/errors/domain.error';
-@Controller()
-export class HealthController {
-  constructor(@Inject(Database) private readonly db: Database) {}
 
-  @Get('health')
+@Controller('health')
+export class HealthController {
+  constructor(@InjectConnection() private readonly sequelize: Sequelize) {}
+
+  @Get()
   async health() {
     try {
-      await this.db.query('SELECT 1');
+      await this.sequelize.authenticate();
     } catch {
       throw new DomainError(503, 'DATABASE_UNAVAILABLE', 'Database is unavailable.');
     }

@@ -8,6 +8,14 @@ TonicBridge is a simulated stablecoin wallet API for Operation Borderless. No bl
 - One wallet per normalized email or E.164 phone number. At least one identifier is required; both may be supplied. Emails are trimmed and lowercased; phone numbers must already be international E.164. A wallet starts with five zero balances.
 - No authentication is required by the brief. Wallet and transaction IDs are identifiers, not authorization. This deliberately open sandbox must not hold real funds or personal customer information.
 
+## NestJS modules and Sequelize
+
+- Feature modules separate wallet, transaction/history, FX, and health controllers and services. Typed DTO schemas are validated and normalized by a Nest Zod pipe before reaching services.
+- Sequelize models define column types, keys, and associations. Injected repositories handle application reads/writes; managed Sequelize transactions own commit/rollback. Repository mode isolates model bindings across independent Nest application instances.
+- Sequelize's `NO_KEY_UPDATE` lock option produces the same ordered PostgreSQL wallet locks used by the financial design. Money writes use `READ COMMITTED`; history uses `REPEATABLE READ` for a consistent count and page.
+- Automatic schema synchronization is disabled. Existing SQL migrations, constraint definitions, and `schema_migrations` records are retained; the migration runner uses Sequelize's connection and transaction management. Existing data and idempotency fingerprints require no conversion.
+- `pg` remains the PostgreSQL dialect driver. Application services use Sequelize models; raw SQL is limited to schema migrations/advisory locking and independent database assertions/fault injection in tests.
+
 ## Money and rates
 
 - Amounts are JSON strings with up to six fractional digits, no signs or exponent notation. Positive amounts only. PostgreSQL stores `NUMERIC(24,6)` and the API returns fixed six-place strings. Maximum stored amount: 999999999999999999.999999.

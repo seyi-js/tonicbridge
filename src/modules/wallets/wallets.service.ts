@@ -1,30 +1,37 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { Database } from '../../database/database.service';
+import { Injectable } from '@nestjs/common';
+import { InjectConnection, InjectModel } from '@nestjs/sequelize';
+import { UniqueConstraintError } from 'sequelize';
+import { Repository, Sequelize } from 'sequelize-typescript';
 import { DomainError } from '../../common/errors/domain.error';
 import { currencies } from '../../common/money';
-import { createWalletSchema } from './dto/create-wallet.dto';
-import { WalletRow, BalanceRow, walletView } from './wallets.types';
+import { CreateWalletDto } from './dto/create-wallet.dto';
+import { Wallet } from './models/wallet.model';
+import { Balance } from './models/balance.model';
+import { walletView } from './wallets.mapper';
+
 @Injectable()
 export class WalletsService {
-  constructor(@Inject(Database) private readonly db: Database) {}
+  constructor(
+    @InjectConnection() private readonly sequelize: Sequelize,
+    @InjectModel(Wallet) private readonly wallets: Repository<Wallet>,
+    @InjectModel(Balance) private readonly balancesRepository: Repository<Balance>,
+  ) {}
 
-  async create(input: unknown) {
-    const data = createWalletSchema.parse(input);
+  async create(input: CreateWalletDto) {
     try {
-      return await this.db.transaction(async (client) => {
-        const result = await client.query<WalletRow>(
-          'INSERT INTO wallets(email, phone) VALUES ($1,$2) RETURNING *',
-          [data.email ?? null, data.phone ?? null],
+      return await this.sequelize.transaction(async (transaction) => {
+        const wallet = await this.wallets.create(
+          { email: input.email ?? null, phone: input.phone ?? null },
+          { transaction },
         );
-        const wallet = result.rows[0]!;
-        await client.query(
-          'INSERT INTO balances(wallet_id,currency) SELECT $1, unnest($2::text[])',
-          [wallet.id, currencies],
+        await this.balancesRepository.bulkCreate(
+          currencies.map((currency) => ({ walletId: wallet.id, currency, amount: '0.000000' })),
+          { transaction },
         );
         return walletView(wallet);
       });
     } catch (error) {
-      if (error && typeof error === 'object' && 'code' in error && error.code === '23505')
+      if (error instanceof UniqueConstraintError)
         throw new DomainError(
           409,
           'DUPLICATE_IDENTITY',
@@ -35,17 +42,16 @@ export class WalletsService {
   }
 
   async get(id: string) {
-    const result = await this.db.query<WalletRow>('SELECT * FROM wallets WHERE id=$1', [id]);
-    if (!result.rows[0]) throw new DomainError(404, 'WALLET_NOT_FOUND', 'Wallet not found.');
-    return walletView(result.rows[0]);
+    const wallet = await this.wallets.findByPk(id);
+    if (!wallet) throw new DomainError(404, 'WALLET_NOT_FOUND', 'Wallet not found.');
+    return walletView(wallet);
   }
 
-  async balances(id: string): Promise<BalanceRow[]> {
+  async balances(id: string): Promise<Balance[]> {
     await this.get(id);
-    const result = await this.db.query<BalanceRow>(
-      'SELECT currency, amount FROM balances WHERE wallet_id=$1 ORDER BY currency',
-      [id],
-    );
-    return result.rows;
+    return this.balancesRepository.findAll({
+      where: { walletId: id },
+      order: [['currency', 'ASC']],
+    });
   }
 }
