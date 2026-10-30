@@ -360,11 +360,18 @@ describe('transaction history', () => {
   });
   it('breaks timestamp ties by transaction ID descending', async () => {
     const id = await wallet();
-    const results = await Promise.all(Array.from({ length: 3 }, () => deposit(id, '1')));
-    await database(app).query(
-      "UPDATE transactions SET created_at='2026-10-01T00:00:00Z' WHERE destination_wallet_id=$1",
-      [id],
-    );
+    const db = database(app);
+    await db.query(`CREATE FUNCTION test_transaction_time() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN NEW.created_at := '2026-10-01T00:00:00Z'; RETURN NEW; END $$`);
+    let results;
+    try {
+      await db.query(`CREATE TRIGGER test_transaction_time BEFORE INSERT ON transactions
+        FOR EACH ROW WHEN (NEW.destination_wallet_id='${id}'::uuid) EXECUTE FUNCTION test_transaction_time()`);
+      results = await Promise.all(Array.from({ length: 3 }, () => deposit(id, '1')));
+    } finally {
+      await db.query('DROP TRIGGER IF EXISTS test_transaction_time ON transactions');
+      await db.query('DROP FUNCTION test_transaction_time()');
+    }
     const read = await request(app.getHttpServer())
       .get(`/wallets/${id}/transactions?limit=2&offset=1`)
       .expect(200);

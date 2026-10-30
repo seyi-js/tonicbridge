@@ -1320,6 +1320,103 @@
           }
         }
       }
+    },
+    "/transactions/{transactionId}/ledger": {
+      "get": {
+        "operationId": "getTransactionLedger",
+        "parameters": [
+          {
+            "name": "transactionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/LedgerJournalResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        },
+                        "message": {
+                          "type": "string",
+                          "enum": ["Ledger journal retrieved successfully."]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid UUID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ledger journal not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Inspect the immutable double-entry journal for a transaction",
+        "description": "Wallet accounts are credit-normal liabilities. Deposits use a funding account; cross-currency operations use FX clearing accounts and balance separately within each currency. Entries are returned in posting order."
+      }
     }
   },
   "components": {
@@ -1849,6 +1946,112 @@
           },
           "meta": {
             "$ref": "#/components/schemas/PaginationMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
+      },
+      "LedgerEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lineNumber": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountKind": {
+            "type": "string",
+            "enum": ["wallet", "funding", "fx"]
+          },
+          "walletId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["cNGN", "cGHS", "cXAF", "USDx", "EURx"]
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["debit", "credit"]
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]{6}$"
+          }
+        },
+        "required": [
+          "id",
+          "lineNumber",
+          "accountId",
+          "accountKind",
+          "walletId",
+          "currency",
+          "direction",
+          "amount"
+        ]
+      },
+      "LedgerJournal": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transactionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "entries": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntry"
+            }
+          }
+        },
+        "required": ["id", "transactionId", "recordedAt", "entries"]
+      },
+      "LedgerJournalResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/LedgerJournal"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
           },
           "errors": {
             "type": "array",

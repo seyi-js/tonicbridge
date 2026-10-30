@@ -2,7 +2,7 @@
 
 **Five currencies. One wallet. Borderless transfers.**
 
-TonicBridge is a REST API for Cardtonic's Operation Borderless assessment. It creates wallets, simulates deposits, swaps currencies, and transfers funds with atomic PostgreSQL transactions. Supported assets are **cNGN, cGHS, cXAF, USDx, and EURx**.
+TonicBridge is a REST API for Cardtonic's Operation Borderless assessment. It creates wallets, simulates deposits, swaps currencies, and transfers funds with an append-only double-entry ledger and atomic PostgreSQL transactions. Supported assets are **cNGN, cGHS, cXAF, USDx, and EURx**.
 
 Built with Node.js 22 LTS, strict TypeScript, NestJS, Sequelize 6 (`@nestjs/sequelize` and `sequelize-typescript`), PostgreSQL 16, and `decimal.js`. `pg` is Sequelize's PostgreSQL driver. Yarn manages dependencies; ESLint, Prettier, Vitest, and Supertest provide the checks. No frontend, blockchain, or paid API credentials are needed.
 
@@ -53,18 +53,19 @@ Compose supplies its own internal database URL. Its credentials are disposable l
 
 The complete contract is [docs/openapi.json](docs/openapi.json); it can also be imported into Postman (set the imported `baseUrl` to your running API address). No authentication is required by this sandbox. Use synthetic identities.
 
-| Method | Path                              | Behavior                                          |
-| ------ | --------------------------------- | ------------------------------------------------- |
-| POST   | `/wallets`                        | Create a wallet using email, E.164 phone, or both |
-| GET    | `/wallets/:walletId`              | Wallet identity                                   |
-| GET    | `/wallets/:walletId/balances`     | Five balances and total USD valuation             |
-| POST   | `/wallets/:walletId/deposits`     | Simulated deposit                                 |
-| POST   | `/wallets/:walletId/swaps`        | Convert within the wallet                         |
-| POST   | `/wallets/:walletId/transfers`    | Same/cross-currency transfer to another wallet    |
-| GET    | `/wallets/:walletId/transactions` | Paginated, filtered history                       |
-| GET    | `/transactions/:transactionId`    | One immutable transaction record                  |
-| GET    | `/rates`                          | All 25 directed pairs, including identity pairs   |
-| GET    | `/health`                         | Database readiness                                |
+| Method | Path                                  | Behavior                                          |
+| ------ | ------------------------------------- | ------------------------------------------------- |
+| POST   | `/wallets`                            | Create a wallet using email, E.164 phone, or both |
+| GET    | `/wallets/:walletId`                  | Wallet identity                                   |
+| GET    | `/wallets/:walletId/balances`         | Five balances and total USD valuation             |
+| POST   | `/wallets/:walletId/deposits`         | Simulated deposit                                 |
+| POST   | `/wallets/:walletId/swaps`            | Convert within the wallet                         |
+| POST   | `/wallets/:walletId/transfers`        | Same/cross-currency transfer to another wallet    |
+| GET    | `/wallets/:walletId/transactions`     | Paginated, filtered history                       |
+| GET    | `/transactions/:transactionId`        | One immutable transaction record                  |
+| GET    | `/transactions/:transactionId/ledger` | Inspect the transaction's double-entry journal    |
+| GET    | `/rates`                              | All 25 directed pairs, including identity pairs   |
+| GET    | `/health`                             | Database readiness                                |
 
 Create two wallets, then copy their returned `data.id` values into the variables below. Change the sample identities if they already exist.
 
@@ -190,6 +191,7 @@ src/
       history.controller.ts
       history.service.ts
       transactions.mapper.ts
+    ledger/                       # Accounts, journals, entries, posting, and inspection
     fx/                           # Rate provider, cache, and fallback
     health/                       # Database readiness
 migrations/                       # Versioned SQL schema migrations
@@ -221,18 +223,23 @@ export class HistoryController implements ControllerContract<HistoryController> 
 | Table                  | Role and constraints                                                                                      |
 | ---------------------- | --------------------------------------------------------------------------------------------------------- |
 | `wallets`              | UUID identity; unique normalized email and unique international phone; at least one required              |
-| `balances`             | One row per wallet/currency; `NUMERIC(24,6)`; nonnegative and bounded                                     |
+| `balances`             | Ledger balance projection; one row per wallet/currency; `NUMERIC(24,6)`; nonnegative and bounded          |
 | `transactions`         | Deposit/swap/transfer record with both wallet IDs, currencies, amounts, rate, rate source, and timestamps |
 | `idempotency_requests` | Unique `(wallet_id, key)`; normalized request fingerprint and unique transaction reference                |
+| `ledger_accounts`      | Wallet liabilities, funding accounts, and FX clearing accounts per currency                               |
+| `ledger_journals`      | One immutable journal per transaction                                                                     |
+| `ledger_entries`       | Positive debit/credit entries that balance per currency                                                   |
 | `schema_migrations`    | Applied SQL migration filenames                                                                           |
 
 A transfer has one transaction ID and appears once in each participant's history. A swap uses the same source and destination wallet with different currencies. A deposit has a null source wallet. There are no record edit/delete endpoints.
 
+**Ledger.** Deposits debit funding and credit the wallet; same-currency transfers debit the sender and credit the recipient. Cross-currency movements use two FX clearing legs so every currency balances independently. Deferred database constraints enforce journal completeness, matching transaction amounts, and reconciliation with cached balances. Posted journals, entries, accounts, and transaction summaries are immutable. See [docs/ledger.md](docs/ledger.md) for the posting rules and reconciliation queries.
+
 **Precision.** Amounts must be positive JSON decimal strings, with up to 18 integer and six fractional digits. Numbers, negative amounts, exponent notation, and extra precision are rejected. Maximum stored amount/balance is `999999999999999999.999999`. PostgreSQL returns monetary strings; all arithmetic uses decimal precision rather than JavaScript floating-point balances. Pair rates round down to 12 fractional digits, then destination amounts round down to six. For example, at the fixed rate, `1.234567 cNGN` produces `0.000771 USDx`. Zero-after-rounding and overflow are rejected. USD valuation sums each balance's rounded six-place USD value from one snapshot; it is indicative.
 
-**Atomicity and concurrency.** Money operations use a managed `sequelize.transaction(...)` at `READ COMMITTED` isolation. Each financial write locks the involved wallet rows in sorted UUID order with Sequelize's `transaction.LOCK.NO_KEY_UPDATE` option, which generates `FOR NO KEY UPDATE`. It checks funds, updates both balances, inserts the transaction, and records the request key inside one PostgreSQL transaction. Any failure rolls everything back. Sorted locks avoid opposing-transfer deadlocks; database constraints independently protect uniqueness and nonnegative balances. The tests exercise two independent API instances against the same database. This conservative per-wallet lock also serializes operations in different currencies for one wallet.
+**Atomicity and concurrency.** Money operations use a managed `sequelize.transaction(...)` at `READ COMMITTED` isolation. Each financial write locks the involved wallet rows in sorted UUID order with Sequelize's `transaction.LOCK.NO_KEY_UPDATE` option, which generates `FOR NO KEY UPDATE`. It checks funds, records the transaction and balanced ledger entries, updates the balance projection from those postings, and records the request key inside one PostgreSQL transaction. Any failure rolls everything back. Sorted locks avoid opposing-transfer deadlocks; database constraints independently protect uniqueness and nonnegative balances. The tests exercise two independent API instances against the same database. This conservative per-wallet lock also serializes operations in different currencies for one wallet.
 
-**Models and migrations.** Sequelize owns application reads and writes, connection pooling, and transaction management. Repository mode gives each Nest application its own model repositories. Automatic schema synchronization is disabled (`synchronize: false`); the original versioned SQL migrations and `schema_migrations` history remain authoritative. Sequelize executes those migrations under the existing advisory lock. This preserves existing wallets, balances, history, request keys, and database constraints without recreating tables. History count and page run in one managed `REPEATABLE READ` transaction.
+**Models and migrations.** Sequelize owns application reads and writes, connection pooling, and transaction management. Repository mode gives each Nest application its own model repositories. Automatic schema synchronization is disabled (`synchronize: false`); `migrations/001-initial.sql` creates the complete schema, including the ledger and its database constraints. Sequelize runs migrations under an advisory lock and records them in `schema_migrations` so startup only applies each file once. History count and page run in one managed `REPEATABLE READ` transaction.
 
 **Idempotency.** All money endpoints require an 8–128 character `Idempotency-Key` containing letters, digits, dots, colons, underscores, or hyphens. Scope is the owning/sending wallet across all money endpoints. Normalized UUIDs and amounts make `10`, `10.0`, and `10.000000` equivalent. A fast replay lookup avoids unnecessary FX requests; a second lookup under the wallet lock handles races. FX network work happens before locks. Failed operations do not consume a key. A successful retry returns the stored amounts/rate even if current rates have changed. Keys are retained indefinitely in this prototype. After a timeout or uncertain response, retry the same request with the same key.
 
@@ -263,7 +270,7 @@ yarn run check # Formatting, lint, strict types, production build, and full test
 
 Docker must be running for the default test suite. It does not require a running application or paid/public provider calls. If Docker is unavailable, supply `TEST_DATABASE_URL` pointing to an existing dedicated PostgreSQL database whose name ends in `_test`. Tests apply migrations and leave synthetic records in that database. Never use a customer database.
 
-The suite covers identity uniqueness, decimal precision, all money operations, concurrent retries and spending, opposing transfers, rollback after an injected database failure, pre-ORM record compatibility across restarts, history, real HTTP FX parsing/fallback, and validation of actual responses against OpenAPI. Warnings from deliberate FX failures and one sanitized error from fault injection are expected. GitHub Actions runs `yarn run check` on pushes and pull requests; no secrets are required.
+The suite covers identity uniqueness, decimal precision, all money operations, concurrent retries and spending, opposing transfers, rollback after an injected database failure, persistence and idempotency across restarts, balanced postings, immutable journals, projection reconciliation, history, real HTTP FX parsing/fallback, and validation of actual responses against OpenAPI. Warnings from deliberate FX failures, rejected commits in constraint tests, and sanitized errors from fault injection are expected. GitHub Actions runs `yarn run check` on pushes and pull requests; no secrets are required.
 
 An optional Postman simulation reproduces healthy FX, HTTP 503, and slow-provider conditions against the actual API and PostgreSQL. It needs Postman CLI 1.73+ and two terminals:
 
@@ -282,8 +289,8 @@ See [the simulation context](postman/simulations/fx.context.md) for evidence and
 - This is a synchronous simulated wallet. There is no blockchain settlement, authentication, authorization, KYC, fee collection, withdrawal, or real money movement. Wallet IDs are identifiers, not access controls.
 - Email identity is case-insensitive and trimmed; phones must already be E.164. Ownership of either identifier is not verified. Same-wallet transfers and same-currency swaps are rejected.
 - Daily fiat rates and the fixed fallback are suitable for the assessment. A real financial service would require executable quotes, expiry/slippage controls, a fallback policy that cannot silently trade at synthetic prices, and a separate rounding/fee ledger.
-- Transactions are an audit trail; this is not a complete double-entry accounting ledger with settlement/control accounts. Six-place scale is a documented prototype choice for all five assets.
+- The double-entry ledger includes simulated funding and FX clearing accounts. External settlement reconciliation and reversal/refund workflows are not implemented. Six-place scale is a documented prototype choice for all five assets.
 - Offset pagination can shift when new records arrive between requests. Count and page are internally consistent within one request; cursor pagination would improve long histories.
-- Future production work includes authenticated wallet ownership, rate limiting, a double-entry ledger, reconciliation, reversals, observability, backup/restore procedures, and an explicit idempotency retention policy. An outbox would be appropriate if external notifications or asynchronous settlement were added.
+- Future production work includes authenticated wallet ownership, rate limiting, external settlement reconciliation, reversals, observability, backup/restore procedures, and an explicit idempotency retention policy. An outbox would be appropriate if external notifications or asynchronous settlement were added.
 
 Design decisions and invariants are also recorded in [docs/decisions.md](docs/decisions.md). Git history follows working milestones: contract, scaffold, wallets, deposits, FX, swaps, transfers, history, failure/concurrency verification, and the NestJS/Sequelize refactor.

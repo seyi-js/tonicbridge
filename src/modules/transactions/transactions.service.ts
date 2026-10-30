@@ -4,10 +4,10 @@ import { createHash } from 'node:crypto';
 import { Op, Transaction } from 'sequelize';
 import { Repository, Sequelize } from 'sequelize-typescript';
 import { DomainError } from '../../common/errors/domain.error';
-import { converted, currencies, Currency, D, MAX_AMOUNT, money } from '../../common/money';
+import { converted, Currency } from '../../common/money';
 import { FxService } from '../fx/fx.service';
 import { Wallet } from '../wallets/models/wallet.model';
-import { Balance } from '../wallets/models/balance.model';
+import { LedgerService } from '../ledger/ledger.service';
 import { DepositDto } from './dto/deposit.dto';
 import { SwapDto } from './dto/swap.dto';
 import { TransferDto } from './dto/transfer.dto';
@@ -22,7 +22,7 @@ export class TransactionsService {
   constructor(
     @InjectConnection() private readonly sequelize: Sequelize,
     @InjectModel(Wallet) private readonly wallets: Repository<Wallet>,
-    @InjectModel(Balance) private readonly balances: Repository<Balance>,
+    @Inject(LedgerService) private readonly ledger: LedgerService,
     @InjectModel(WalletTransaction) private readonly transactions: Repository<WalletTransaction>,
     @InjectModel(IdempotencyRequest) private readonly requests: Repository<IdempotencyRequest>,
     @Inject(FxService) private readonly fx: FxService,
@@ -148,34 +148,6 @@ export class TransactionsService {
         if (previous) return this.replay(previous, fingerprint, transaction);
 
         const destinationAmount = converted(input.amount, quote.rate);
-        const balances = await this.balances.findAll({
-          where: { walletId: { [Op.in]: ids } },
-          transaction,
-        });
-        if (balances.length !== ids.length * currencies.length)
-          throw new Error('Incomplete wallet balances');
-
-        const balance = (walletId: string, currency: Currency) =>
-          balances.find((row) => row.walletId === walletId && row.currency === currency)!;
-
-        if (input.type !== 'deposit') {
-          const source = balance(input.walletId, input.from);
-          const remaining = new D(source.amount).minus(input.amount);
-          if (remaining.lt(0))
-            throw new DomainError(422, 'INSUFFICIENT_FUNDS', 'Insufficient source balance.');
-          await source.update({ amount: money(remaining) }, { transaction });
-        }
-
-        const destination = balance(input.recipientId, input.to);
-        const received = new D(destination.amount).plus(destinationAmount);
-        if (received.gt(MAX_AMOUNT))
-          throw new DomainError(
-            422,
-            'BALANCE_LIMIT',
-            'Recipient balance exceeds the supported limit.',
-          );
-        await destination.update({ amount: money(received) }, { transaction });
-
         const saved = await this.transactions.create(
           {
             type: input.type,
@@ -191,6 +163,7 @@ export class TransactionsService {
           },
           { transaction },
         );
+        await this.ledger.post(saved, transaction);
         await this.requests.create(
           { walletId: input.walletId, key, fingerprint, transactionId: saved.id },
           { transaction },

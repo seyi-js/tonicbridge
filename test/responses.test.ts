@@ -78,6 +78,21 @@ it('keeps real endpoint responses compatible with the committed OpenAPI contract
     .send({ fromCurrency: 'USDx', toCurrency: 'cNGN', amount: '1' })
     .expect(201);
   contract('/wallets/{walletId}/swaps', 'post', swap);
+  contract(
+    '/transactions/{transactionId}/ledger',
+    'get',
+    await http.get(`/transactions/${swap.body.data.id}/ledger`).expect(200),
+  );
+  contract(
+    '/transactions/{transactionId}/ledger',
+    'get',
+    await http.get('/transactions/invalid/ledger').expect(400),
+  );
+  contract(
+    '/transactions/{transactionId}/ledger',
+    'get',
+    await http.get(`/transactions/${randomUUID()}/ledger`).expect(404),
+  );
   for (const toCurrency of ['USDx', 'EURx']) {
     const transfer = await http
       .post(`/wallets/${id}/transfers`)

@@ -69,16 +69,20 @@ describe('financial safety across independent API instances', () => {
     // Reconstruct every balance from persisted credits and debits, independently of the service.
     const mismatches = await database(first).query(
       `
-      WITH entries AS (
-        SELECT destination_wallet_id AS wallet_id, destination_currency AS currency, destination_amount AS amount FROM transactions
-        UNION ALL
-        SELECT source_wallet_id,source_currency,-source_amount FROM transactions WHERE source_wallet_id IS NOT NULL
-      ), totals AS (SELECT wallet_id,currency,sum(amount) AS amount FROM entries GROUP BY wallet_id,currency)
+      WITH totals AS (
+        SELECT a.wallet_id,a.currency,sum(CASE WHEN e.direction='credit' THEN e.amount ELSE -e.amount END) AS amount
+        FROM ledger_accounts a JOIN ledger_entries e ON e.account_id=a.id
+        WHERE a.kind='wallet' GROUP BY a.wallet_id,a.currency
+      )
       SELECT b.* FROM balances b LEFT JOIN totals t USING(wallet_id,currency)
       WHERE b.wallet_id=ANY($1::uuid[]) AND b.amount<>coalesce(t.amount,0)`,
       [[source, recipient]],
     );
     expect(mismatches.rowCount).toBe(0);
+    expect(
+      (await database(first).query('SELECT * FROM ledger_journal_totals WHERE debits<>credits'))
+        .rowCount,
+    ).toBe(0);
   });
   it('completes opposing transfers without deadlocks or lost money', async () => {
     const a = await wallet();
@@ -110,13 +114,13 @@ describe('financial safety across independent API instances', () => {
       .expect(200);
     expect(history.body.meta.total).toBe(2);
   });
-  it('rolls back both balance updates when transaction insertion fails and allows the same key to retry', async () => {
+  it('leaves balances unchanged when transaction insertion fails and allows the same key to retry', async () => {
     const a = await wallet();
     const b = await wallet();
     await write(first, a, 'deposits', { currency: 'USDx', amount: '10' }).expect(201);
     const db = database(first);
     const key = randomUUID();
-    // A scoped PostgreSQL trigger injects a real storage error after the service has updated balances.
+    // A scoped PostgreSQL trigger injects a real transaction storage error.
     await db.query(`CREATE FUNCTION test_reject_transaction() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN RAISE EXCEPTION 'Injected transaction storage failure'; END $$`);
     try {

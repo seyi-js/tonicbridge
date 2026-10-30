@@ -62,6 +62,19 @@ export async function smoke(baseUrl) {
   );
   assert.equal(swap.message, 'Swap completed successfully.');
   assert.equal(transfer.message, 'Transfer completed successfully.');
+  for (const movement of [deposit, swap, transfer]) {
+    const journal = await call(`/transactions/${movement.data.id}/ledger`, 200);
+    assert.equal(journal.data.transactionId, movement.data.id);
+    assert.equal(journal.message, 'Ledger journal retrieved successfully.');
+    const totals = new Map();
+    for (const entry of journal.data.entries) {
+      const amount = BigInt(entry.amount.replace('.', ''));
+      const delta = entry.direction === 'debit' ? amount : -amount;
+      totals.set(entry.currency, (totals.get(entry.currency) ?? 0n) + delta);
+    }
+    assert.ok(journal.data.entries.length >= 2);
+    for (const total of totals.values()) assert.equal(total, 0n);
+  }
   const balances = await call(`/wallets/${a.data.id}/balances`, 200);
   assert.equal(balances.data.balances.find((row) => row.currency === 'USDx').amount, '85.000000');
   assert.equal(

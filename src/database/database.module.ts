@@ -13,7 +13,7 @@ import { MigrationsService } from './migrations.service';
         dialect: 'postgres',
         uri: config.DATABASE_URL,
         autoLoadModels: true,
-        // Versioned migrations own the schema, including existing financial CHECK constraints.
+        // Versioned migrations own the schema, including financial constraints and ledger triggers.
         synchronize: false,
         // Each Nest application gets independent model repositories and its own connection pool.
         repositoryMode: true,

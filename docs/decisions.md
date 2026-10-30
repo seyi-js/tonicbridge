@@ -10,10 +10,10 @@ TonicBridge is a simulated stablecoin wallet API for Operation Borderless. No bl
 
 ## NestJS modules and Sequelize
 
-- Feature modules separate wallet, transaction/history, FX, and health controllers and services. Typed DTO schemas are validated and normalized by a Nest Zod pipe before reaching services.
+- Feature modules separate wallet, transaction/history, ledger, FX, and health controllers and services. Typed DTO schemas are validated and normalized by a Nest Zod pipe before reaching services.
 - Sequelize models define column types, keys, and associations. Injected repositories handle application reads/writes; managed Sequelize transactions own commit/rollback. Repository mode isolates model bindings across independent Nest application instances.
 - Sequelize's `NO_KEY_UPDATE` lock option produces the same ordered PostgreSQL wallet locks used by the financial design. Money writes use `READ COMMITTED`; history uses `REPEATABLE READ` for a consistent count and page.
-- Automatic schema synchronization is disabled. Existing SQL migrations, constraint definitions, and `schema_migrations` records are retained; the migration runner uses Sequelize's connection and transaction management. Existing data and idempotency fingerprints require no conversion.
+- Automatic schema synchronization is disabled. The initial SQL migration creates the complete wallet and ledger schema; the migration runner uses Sequelize's connection and transaction management and tracks applied files in `schema_migrations`.
 - `pg` remains the PostgreSQL dialect driver. Application services use Sequelize models; raw SQL is limited to schema migrations/advisory locking and independent database assertions/fault injection in tests.
 
 ## Money and rates
@@ -29,9 +29,15 @@ TonicBridge is a simulated stablecoin wallet API for Operation Borderless. No bl
 
 - Deposit, swap, and transfer requests require `Idempotency-Key` (8–128 characters: letters, digits, `_`, `.`, `:`, `-`). Scope is the source/owning wallet across all money endpoints.
 - Fingerprints use normalized operation, wallets, currencies, and fixed-place amounts. Equivalent amount strings have the same meaning. Same key and fingerprint returns the original transaction with HTTP 200 and `Idempotency-Replayed: true`; first execution returns HTTP 201 and `false`. Different contents return HTTP 409. Failed operations do not consume a key.
-- Wallet rows are locked in UUID order with `FOR NO KEY UPDATE`; all balance updates, the transaction record, and the idempotency record commit atomically. This serializes activity per wallet and prevents conflicting two-wallet transfers from taking locks in different orders.
+- Wallet rows are locked in UUID order with `FOR NO KEY UPDATE`; the transaction record, double-entry journal, ledger entries, balance projection updates, and idempotency record commit atomically. This serializes activity per wallet and prevents conflicting two-wallet transfers from taking locks in different orders.
 - Network requests for FX occur before acquiring database locks. Idempotency is checked again inside the transaction. Database nonnegative constraints and uniqueness constraints remain independent safeguards.
 - Idempotency records are retained indefinitely in this sandbox. There is no claim of a distributed exactly-once protocol; all financial effects occur in one PostgreSQL transaction.
+
+## Ledger
+
+- Accounts, journals, and debit/credit entries are the authoritative accounting record; `balances` is a projection checked against wallet postings at commit. Every transaction requires one journal, balanced separately in each currency, with entries matching the recorded movement.
+- Deposits use funding accounts; cross-currency operations use FX clearing accounts. Database triggers prevent updating, deleting, truncating, or extending committed financial records. Corrections require new journaled movements.
+- The initial schema seeds funding and FX accounts for each currency. Wallet creation adds its five liability accounts alongside its zero balance projections. Read-only journal inspection is available at `/transactions/:transactionId/ledger`. See [ledger.md](ledger.md) for details.
 
 ## Reads and errors
 
@@ -44,7 +50,3 @@ TonicBridge is a simulated stablecoin wallet API for Operation Borderless. No bl
 ## Verification targets
 
 Tests must prove persisted/reconstructed balances, duplicate identities, exact rounding, idempotent retries and conflicts, rejected negative/invalid amounts, insufficient funds, wallet-not-found behavior, atomic transfers, concurrent overspending protection, opposing transfers, live FX parsing and fallback, history filtering/pagination, and reproducible Docker startup. A fixed FX mode keeps the full test suite independent of the public provider.
-
-## Sequelize migration verification (2026-10-30)
-
-`yarn run check` passed all 34 tests, including concurrent requests across independent API instances, rollback on an injected storage failure, and a restart test that reads pre-ORM rows and replays their existing request key. The production Docker image was also started against the existing database: wallet identities, balances, histories, transaction details, and an old idempotency key matched the responses captured before the upgrade. No schema migration or data conversion was needed. The Postman FX success/error/timeout walkthrough passed with the compiled Sequelize implementation; its observations are in `postman/simulations/fx.context.md`.

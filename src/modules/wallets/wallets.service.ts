@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
 import { Repository, Sequelize } from 'sequelize-typescript';
@@ -8,6 +8,7 @@ import { CreateWalletDto } from './dto/create-wallet.dto';
 import { Wallet } from './models/wallet.model';
 import { Balance } from './models/balance.model';
 import { walletView } from './wallets.mapper';
+import { LedgerService } from '../ledger/ledger.service';
 
 @Injectable()
 export class WalletsService {
@@ -15,6 +16,7 @@ export class WalletsService {
     @InjectConnection() private readonly sequelize: Sequelize,
     @InjectModel(Wallet) private readonly wallets: Repository<Wallet>,
     @InjectModel(Balance) private readonly balancesRepository: Repository<Balance>,
+    @Inject(LedgerService) private readonly ledger: LedgerService,
   ) {}
 
   async create(input: CreateWalletDto) {
@@ -28,6 +30,7 @@ export class WalletsService {
           currencies.map((currency) => ({ walletId: wallet.id, currency, amount: '0.000000' })),
           { transaction },
         );
+        await this.ledger.createWalletAccounts(wallet.id, transaction);
         return walletView(wallet);
       });
     } catch (error) {

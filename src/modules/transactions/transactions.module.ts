@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { FxModule } from '../fx/fx.module';
 import { WalletsModule } from '../wallets/wallets.module';
+import { LedgerModule } from '../ledger/ledger.module';
 import { WalletTransaction } from './models/transaction.model';
 import { IdempotencyRequest } from './models/idempotency-request.model';
 import { TransactionsController } from './transactions.controller';
@@ -13,6 +14,7 @@ import { HistoryService } from './history.service';
   imports: [
     SequelizeModule.forFeature([WalletTransaction, IdempotencyRequest]),
     WalletsModule,
+    LedgerModule,
     FxModule,
   ],
   controllers: [TransactionsController, HistoryController],
