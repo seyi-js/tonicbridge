@@ -10,13 +10,16 @@ export interface RateSnapshot {
 
   perUsd: Record<Currency, string>;
 }
+
 // Explicit synthetic assumptions, published with this prototype; not historical market quotes.
 export const FIXED_RATES: RateSnapshot = {
   source: 'fixed',
   updatedAt: '2026-10-29T00:00:00.000Z',
   perUsd: { cNGN: '1600', cGHS: '15', cXAF: '600', USDx: '1', EURx: '0.9' },
 };
+
 const value = z.number().finite().min(0.000001).max(1e9);
+
 const providerSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   usd: z.object({ ngn: value, ghs: value, xaf: value, usd: z.literal(1), eur: value }),
@@ -37,18 +40,25 @@ export class FxService {
   }
 
   async snapshot(): Promise<RateSnapshot> {
-    if (this.config.FX_MODE === 'fixed') return FIXED_RATES;
+    if (this.config.FX_MODE === 'fixed') {
+      return FIXED_RATES;
+    }
+
     if (
       this.cached &&
       Date.now() < this.cached.expiresAt &&
       (this.cached.snapshot.source === 'fixed' ||
         Date.now() - Date.parse(this.cached.snapshot.updatedAt) <= 3 * 86400000)
-    )
+    ) {
       return this.cached.snapshot;
-    if (!this.pending)
+    }
+
+    if (!this.pending) {
       this.pending = this.refresh().finally(() => {
         this.pending = undefined;
       });
+    }
+
     return this.pending;
   }
 
@@ -62,30 +72,50 @@ export class FxService {
           headers: { Accept: 'application/json' },
         },
       );
-      if (!response.ok) throw new Error('FX provider status');
+
+      if (!response.ok) {
+        throw new Error('FX provider status');
+      }
+
       const reader = response.body?.getReader();
-      if (!reader) throw new Error('FX body missing');
+
+      if (!reader) {
+        throw new Error('FX body missing');
+      }
+
       const chunks: Uint8Array[] = [];
       let size = 0;
+
       for (;;) {
         const chunk = await reader.read();
-        if (chunk.done) break;
+
+        if (chunk.done) {
+          break;
+        }
+
         size += chunk.value.length;
+
         if (size > 262144) {
           await reader.cancel();
+
           throw new Error('FX body too large');
         }
+
         chunks.push(chunk.value);
       }
+
       const data = providerSchema.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
       const timestamp = Date.parse(`${data.date}T00:00:00.000Z`);
+
       if (
         !Number.isFinite(timestamp) ||
         new Date(timestamp).toISOString().slice(0, 10) !== data.date ||
         timestamp > Date.now() + 300000 ||
         Date.now() - timestamp > 3 * 86400000
-      )
+      ) {
         throw new Error('FX publication date invalid or stale');
+      }
+
       const snapshot: RateSnapshot = {
         source: 'live',
         updatedAt: new Date(timestamp).toISOString(),
@@ -97,26 +127,33 @@ export class FxService {
           EURx: String(data.usd.eur),
         },
       };
+
       if (
         currencies.some((from) =>
           currencies.some((to) => new D(this.rate(snapshot, from, to)).lte(0)),
         )
-      )
+      ) {
         throw new Error('FX pair is below the supported rate precision');
+      }
+
       this.cached = { snapshot, expiresAt: Date.now() + this.config.FX_CACHE_SECONDS * 1000 };
+
       return snapshot;
     } catch {
       this.logger.warn(
         'FX provider unavailable or invalid; using explicitly labelled fixed sandbox rates.',
       );
+
       // Short cooldown prevents request storms while allowing recovery on the next refresh.
       this.cached = { snapshot: FIXED_RATES, expiresAt: Date.now() + 60000 };
+
       return FIXED_RATES;
     }
   }
 
   async rates() {
     const snapshot = await this.snapshot();
+
     return {
       source: snapshot.source,
       updatedAt: snapshot.updatedAt,

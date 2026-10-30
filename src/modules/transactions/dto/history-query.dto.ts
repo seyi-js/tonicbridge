@@ -7,6 +7,7 @@ const integerQuery = (minimum: number, maximum: number) =>
     .regex(/^(0|[1-9][0-9]*)$/)
     .transform(Number)
     .pipe(z.number().int().min(minimum).max(maximum));
+
 export const historySchema = z
   .object({
     type: z.enum(['deposit', 'swap', 'transfer']).optional(),

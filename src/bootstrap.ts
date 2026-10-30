@@ -11,6 +11,7 @@ export async function createApp() {
     logger: ['warn', 'error'],
     abortOnError: false,
   });
+
   app.useGlobalFilters(new ErrorFilter());
 
   app.useGlobalInterceptors(new ResponseInterceptor());

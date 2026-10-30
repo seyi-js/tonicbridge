@@ -38,7 +38,9 @@ CREATE TABLE transactions (
     OR (source_currency<>destination_currency AND rate_source IS NOT NULL AND rate_updated_at IS NOT NULL)
   )
 );
+
 CREATE INDEX transactions_sender_history ON transactions(source_wallet_id, created_at DESC, id DESC);
+
 CREATE INDEX transactions_recipient_history ON transactions(destination_wallet_id, created_at DESC, id DESC);
 
 CREATE TABLE idempotency_requests (
@@ -60,7 +62,9 @@ CREATE TABLE ledger_accounts (
   UNIQUE (id, currency),
   FOREIGN KEY (wallet_id, currency) REFERENCES balances(wallet_id, currency)
 );
+
 CREATE UNIQUE INDEX ledger_wallet_account ON ledger_accounts(wallet_id, currency) WHERE kind='wallet';
+
 CREATE UNIQUE INDEX ledger_system_account ON ledger_accounts(kind, currency) WHERE wallet_id IS NULL;
 
 CREATE TABLE ledger_journals (
@@ -81,6 +85,7 @@ CREATE TABLE ledger_entries (
   UNIQUE (journal_id, line_number),
   FOREIGN KEY (account_id, currency) REFERENCES ledger_accounts(id, currency)
 );
+
 CREATE INDEX ledger_entries_account ON ledger_entries(account_id);
 
 -- Wallet accounts are liabilities: credits increase the customer's available balance.
@@ -107,6 +112,7 @@ $$;
 INSERT INTO ledger_accounts(kind,currency)
 SELECT kind,currency FROM unnest(ARRAY['funding','fx']) AS kind
 CROSS JOIN unnest(ARRAY['cNGN','cGHS','cXAF','USDx','EURx']) AS currency;
+
 CREATE VIEW ledger_reconciliation AS
 SELECT b.wallet_id,b.currency,b.amount AS stored_balance,
   coalesce(sum(CASE WHEN e.direction='credit' THEN e.amount ELSE -e.amount END),0) AS ledger_balance,
@@ -126,11 +132,13 @@ CREATE FUNCTION assert_ledger_journal(journal_uuid UUID) RETURNS void LANGUAGE p
 DECLARE transaction_uuid UUID;
 BEGIN
   SELECT transaction_id INTO STRICT transaction_uuid FROM ledger_journals WHERE id=journal_uuid;
+
   IF NOT EXISTS (SELECT 1 FROM ledger_entries WHERE journal_id=journal_uuid)
     OR EXISTS (SELECT 1 FROM ledger_journal_totals WHERE journal_id=journal_uuid AND debits<>credits) THEN
     RAISE EXCEPTION 'Journal must contain equal debits and credits in each currency'
       USING ERRCODE='23514', CONSTRAINT='ledger_journal_balanced';
   END IF;
+
   -- A balanced journal must also describe the exact transaction it belongs to.
   IF EXISTS (
     WITH expected AS (SELECT * FROM expected_ledger_entries(transaction_uuid)),
@@ -154,27 +162,35 @@ BEGIN
     USING ERRCODE='23514', CONSTRAINT='ledger_append_only';
 END;
 $$;
+
 CREATE TRIGGER ledger_accounts_immutable
 BEFORE UPDATE OR DELETE ON ledger_accounts
 FOR EACH ROW EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER ledger_journals_immutable
 BEFORE UPDATE OR DELETE ON ledger_journals
 FOR EACH ROW EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER ledger_entries_immutable
 BEFORE UPDATE OR DELETE ON ledger_entries
 FOR EACH ROW EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER transactions_immutable
 BEFORE UPDATE OR DELETE ON transactions
 FOR EACH ROW EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER ledger_accounts_no_truncate
 BEFORE TRUNCATE ON ledger_accounts
 FOR EACH STATEMENT EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER ledger_journals_no_truncate
 BEFORE TRUNCATE ON ledger_journals
 FOR EACH STATEMENT EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER ledger_entries_no_truncate
 BEFORE TRUNCATE ON ledger_entries
 FOR EACH STATEMENT EXECUTE FUNCTION reject_financial_mutation();
+
 CREATE TRIGGER transactions_no_truncate
 BEFORE TRUNCATE ON transactions
 FOR EACH STATEMENT EXECUTE FUNCTION reject_financial_mutation();
@@ -182,9 +198,11 @@ FOR EACH STATEMENT EXECUTE FUNCTION reject_financial_mutation();
 CREATE FUNCTION stamp_ledger_journal() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   NEW.posting_xid := pg_current_xact_id();
+
   RETURN NEW;
 END;
 $$;
+
 CREATE TRIGGER ledger_journal_stamp
 BEFORE INSERT ON ledger_journals
 FOR EACH ROW EXECUTE FUNCTION stamp_ledger_journal();
@@ -195,9 +213,11 @@ BEGIN
     RAISE EXCEPTION 'A committed journal cannot accept new entries'
       USING ERRCODE='23514', CONSTRAINT='ledger_journal_sealed';
   END IF;
+
   RETURN NEW;
 END;
 $$;
+
 CREATE TRIGGER ledger_entry_insert
 BEFORE INSERT ON ledger_entries
 FOR EACH ROW EXECUTE FUNCTION guard_ledger_entry_insert();
@@ -209,13 +229,16 @@ BEGIN
   ELSE
     PERFORM assert_ledger_journal(NEW.journal_id);
   END IF;
+
   RETURN NULL;
 END;
 $$;
+
 CREATE CONSTRAINT TRIGGER ledger_journal_complete
 AFTER INSERT ON ledger_journals
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION check_ledger_journal();
+
 CREATE CONSTRAINT TRIGGER ledger_entries_balanced
 AFTER INSERT ON ledger_entries
 DEFERRABLE INITIALLY DEFERRED
@@ -227,9 +250,11 @@ BEGIN
     RAISE EXCEPTION 'Every transaction requires a ledger journal'
       USING ERRCODE='23514', CONSTRAINT='transaction_requires_journal';
   END IF;
+
   RETURN NULL;
 END;
 $$;
+
 CREATE CONSTRAINT TRIGGER transaction_has_journal
 AFTER INSERT ON transactions
 DEFERRABLE INITIALLY DEFERRED
@@ -240,22 +265,29 @@ DECLARE wallet_uuid UUID; asset TEXT;
 BEGIN
   IF TG_TABLE_NAME='ledger_entries' THEN
     SELECT wallet_id,currency INTO wallet_uuid,asset FROM ledger_accounts WHERE id=NEW.account_id;
-    IF wallet_uuid IS NULL THEN RETURN NULL; END IF;
+
+    IF wallet_uuid IS NULL THEN
+      RETURN NULL;
+    END IF;
   ELSE
     wallet_uuid := NEW.wallet_id;
     asset := NEW.currency;
   END IF;
+
   IF NOT EXISTS (SELECT 1 FROM ledger_reconciliation WHERE wallet_id=wallet_uuid AND currency=asset AND matches) THEN
     RAISE EXCEPTION 'Wallet balance must match its ledger entries'
       USING ERRCODE='23514', CONSTRAINT='wallet_balance_matches_ledger';
   END IF;
+
   RETURN NULL;
 END;
 $$;
+
 CREATE CONSTRAINT TRIGGER wallet_balance_reconciled
 AFTER INSERT OR UPDATE ON balances
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION check_wallet_ledger_balance();
+
 CREATE CONSTRAINT TRIGGER ledger_wallet_reconciled
 AFTER INSERT ON ledger_entries
 DEFERRABLE INITIALLY DEFERRED

@@ -58,8 +58,9 @@ export class TransactionsService {
   }
 
   transfer(walletId: string, input: TransferDto, key: unknown) {
-    if (input.recipientWalletId === walletId)
+    if (input.recipientWalletId === walletId) {
       throw new DomainError(400, 'SAME_WALLET', 'Recipient must be a different wallet.');
+    }
 
     return this.move(
       {
@@ -76,9 +77,12 @@ export class TransactionsService {
   }
 
   private async quote(from: Currency, to: Currency): Promise<RateQuote> {
-    if (from === to) return identityQuote;
+    if (from === to) {
+      return identityQuote;
+    }
 
     const snapshot = await this.fx.snapshot();
+
     return {
       rate: this.fx.rate(snapshot, from, to),
       source: snapshot.source,
@@ -87,15 +91,19 @@ export class TransactionsService {
   }
 
   private async replay(stored: IdempotencyRequest, fingerprint: string, transaction?: Transaction) {
-    if (stored.fingerprint !== fingerprint)
+    if (stored.fingerprint !== fingerprint) {
       throw new DomainError(
         409,
         'IDEMPOTENCY_CONFLICT',
         'This key was already used for a different request.',
       );
+    }
 
     const original = await this.transactions.findByPk(stored.transactionId, { transaction });
-    if (!original) throw new Error('Idempotency record has no transaction');
+
+    if (!original) {
+      throw new Error('Idempotency record has no transaction');
+    }
 
     return { transaction: transactionView(original), replayed: true };
   }
@@ -106,6 +114,7 @@ export class TransactionsService {
     quoteProvider: () => Promise<RateQuote> = async () => identityQuote,
   ) {
     const key = keySchema.parse(rawKey, { path: ['idempotency-key'] });
+
     const fingerprint = createHash('sha256')
       .update(
         JSON.stringify([
@@ -120,7 +129,10 @@ export class TransactionsService {
       .digest('hex');
 
     const prior = await this.requests.findOne({ where: { walletId: input.walletId, key } });
-    if (prior) return this.replay(prior, fingerprint);
+
+    if (prior) {
+      return this.replay(prior, fingerprint);
+    }
 
     // External FX calls finish before acquiring any wallet locks.
     const quote = await quoteProvider();
@@ -138,17 +150,23 @@ export class TransactionsService {
           lock: transaction.LOCK.NO_KEY_UPDATE,
           transaction,
         });
-        if (locked.length !== ids.length)
+
+        if (locked.length !== ids.length) {
           throw new DomainError(404, 'WALLET_NOT_FOUND', 'Source or recipient wallet not found.');
+        }
 
         const previous = await this.requests.findOne({
           where: { walletId: input.walletId, key },
           transaction,
         });
-        if (previous) return this.replay(previous, fingerprint, transaction);
+
+        if (previous) {
+          return this.replay(previous, fingerprint, transaction);
+        }
 
         const destinationAmount = converted(input.amount, quote.rate);
-        const saved = await this.transactions.create(
+
+        const savedTransaction = await this.transactions.create(
           {
             type: input.type,
             sourceWalletId: input.type === 'deposit' ? null : input.walletId,
@@ -163,13 +181,15 @@ export class TransactionsService {
           },
           { transaction },
         );
-        await this.ledger.post(saved, transaction);
+
+        await this.ledger.post(savedTransaction, transaction);
+
         await this.requests.create(
-          { walletId: input.walletId, key, fingerprint, transactionId: saved.id },
+          { walletId: input.walletId, key, fingerprint, transactionId: savedTransaction.id },
           { transaction },
         );
 
-        return { transaction: transactionView(saved), replayed: false };
+        return { transaction: transactionView(savedTransaction), replayed: false };
       },
     );
   }

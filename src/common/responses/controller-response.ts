@@ -2,7 +2,9 @@ import { PaginationMeta } from './api-response';
 
 export interface ControllerResponse<T = unknown> {
   data: T;
+
   message: string;
+
   meta?: Partial<PaginationMeta>;
 }
 

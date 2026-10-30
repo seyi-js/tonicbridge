@@ -12,9 +12,13 @@ import { LedgerJournal } from './models/ledger-journal.model';
 
 interface Posting {
   kind: LedgerAccount['kind'];
+
   walletId: string | null;
+
   currency: Currency;
+
   direction: LedgerEntry['direction'];
+
   amount: string;
 }
 
@@ -35,21 +39,26 @@ export class LedgerService {
   }
 
   // The caller holds ordered wallet locks and owns the surrounding database transaction.
-  async post(record: WalletTransaction, transaction: Transaction): Promise<void> {
+  async post(record: WalletTransaction, dbTransaction: Transaction): Promise<void> {
     const postings = this.postings(record);
+
     const walletIds = [
       ...new Set(postings.flatMap((entry) => (entry.walletId ? [entry.walletId] : []))),
     ];
+
     const accounts = await this.accounts.findAll({
       where: { [Op.or]: [{ walletId: { [Op.in]: walletIds } }, { walletId: null }] },
-      transaction,
+      transaction: dbTransaction,
     });
+
     const balances = await this.balances.findAll({
       where: { walletId: { [Op.in]: walletIds } },
-      transaction,
+      transaction: dbTransaction,
     });
-    if (balances.length !== walletIds.length * currencies.length)
+
+    if (balances.length !== walletIds.length * currencies.length) {
       throw new Error('Incomplete wallet balances');
+    }
 
     // Build the projection from the same postings that will be stored in the journal.
     const changes = postings
@@ -58,22 +67,35 @@ export class LedgerService {
         const balance = balances.find(
           (row) => row.walletId === entry.walletId && row.currency === entry.currency,
         );
-        if (!balance) throw new Error('Wallet balance is missing');
+
+        if (!balance) {
+          throw new Error('Wallet balance is missing');
+        }
+
         const amount = new D(balance.amount).plus(
           entry.direction === 'credit' ? entry.amount : new D(entry.amount).negated(),
         );
-        if (amount.lt(0))
+
+        if (amount.lt(0)) {
           throw new DomainError(422, 'INSUFFICIENT_FUNDS', 'Insufficient source balance.');
-        if (amount.gt(MAX_AMOUNT))
+        }
+
+        if (amount.gt(MAX_AMOUNT)) {
           throw new DomainError(
             422,
             'BALANCE_LIMIT',
             'Recipient balance exceeds the supported limit.',
           );
+        }
+
         return { balance, amount: money(amount) };
       });
 
-    const journal = await this.journals.create({ transactionId: record.id }, { transaction });
+    const journal = await this.journals.create(
+      { transactionId: record.id },
+      { transaction: dbTransaction },
+    );
+
     await this.entries.bulkCreate(
       postings.map((entry, index) => {
         const account = accounts.find(
@@ -82,7 +104,11 @@ export class LedgerService {
             row.walletId === entry.walletId &&
             row.currency === entry.currency,
         );
-        if (!account) throw new Error('Ledger account is missing');
+
+        if (!account) {
+          throw new Error('Ledger account is missing');
+        }
+
         return {
           journalId: journal.id,
           lineNumber: index + 1,
@@ -92,31 +118,38 @@ export class LedgerService {
           amount: entry.amount,
         };
       }),
-      { transaction },
+      { transaction: dbTransaction },
     );
 
     for (const change of changes) {
-      await change.balance.update({ amount: change.amount }, { transaction });
+      await change.balance.update({ amount: change.amount }, { transaction: dbTransaction });
     }
     // Deferred PostgreSQL constraints verify balance, transaction matching, and projections at commit.
   }
 
   async get(transactionId: string) {
     const journal = await this.journals.findOne({ where: { transactionId } });
-    if (!journal) throw new DomainError(404, 'JOURNAL_NOT_FOUND', 'Ledger journal not found.');
+
+    if (!journal) {
+      throw new DomainError(404, 'JOURNAL_NOT_FOUND', 'Ledger journal not found.');
+    }
+
     const entries = await this.entries.findAll({
       where: { journalId: journal.id },
       order: [['lineNumber', 'ASC']],
     });
+
     const accounts = await this.accounts.findAll({
       where: { id: { [Op.in]: entries.map((entry) => entry.accountId) } },
     });
+
     return {
       id: journal.id,
       transactionId,
       recordedAt: journal.recordedAt.toISOString(),
       entries: entries.map((entry) => {
         const account = accounts.find((row) => row.id === entry.accountId)!;
+
         return {
           id: entry.id,
           lineNumber: entry.lineNumber,
@@ -139,6 +172,7 @@ export class LedgerService {
       direction: 'debit',
       amount: record.sourceAmount,
     };
+
     const destination: Posting = {
       kind: 'wallet',
       walletId: record.destinationWalletId,
@@ -146,7 +180,11 @@ export class LedgerService {
       direction: 'credit',
       amount: record.destinationAmount,
     };
-    if (record.sourceCurrency === record.destinationCurrency) return [source, destination];
+
+    if (record.sourceCurrency === record.destinationCurrency) {
+      return [source, destination];
+    }
+
     return [
       source,
       {

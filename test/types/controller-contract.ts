@@ -9,6 +9,7 @@ export class ValidController implements ControllerContract<ValidController> {
 
   async list(limit: number) {
     const items = this.items();
+
     return {
       data: items,
       message: 'Retrieved successfully.',
@@ -49,7 +50,10 @@ export class InvalidController implements ControllerContract<InvalidController> 
 
   // @ts-expect-error All successful return branches must satisfy the response contract.
   incompleteBranch(found: boolean) {
-    if (found) return { data: { id: 'example' }, message: 'Retrieved successfully.' };
+    if (found) {
+      return { data: { id: 'example' }, message: 'Retrieved successfully.' };
+    }
+
     return { data: null };
   }
 }

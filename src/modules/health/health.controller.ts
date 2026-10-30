@@ -15,6 +15,7 @@ export class HealthController implements ControllerContract<HealthController> {
     } catch {
       throw new DomainError(503, 'DATABASE_UNAVAILABLE', 'Database is unavailable.');
     }
+
     return { data: { status: 'ok' }, message: 'Service is healthy.' };
   }
 }

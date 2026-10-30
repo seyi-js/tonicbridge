@@ -14,6 +14,7 @@ export class HistoryController implements ControllerContract<HistoryController> 
     @ValidatedQuery(historySchema) query: HistoryQueryDto,
   ) {
     const { items, total, limit, offset } = await this.history.list(walletId, query);
+
     return {
       data: items,
       message: 'Transactions retrieved successfully.',
@@ -24,6 +25,7 @@ export class HistoryController implements ControllerContract<HistoryController> 
   @Get('transactions/:transactionId')
   async get(@UuidParam('transactionId') id: string) {
     const data = await this.history.get(id);
+
     return { data, message: 'Transaction retrieved successfully.' };
   }
 }

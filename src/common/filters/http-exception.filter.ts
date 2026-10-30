@@ -23,6 +23,7 @@ export class ErrorFilter implements ExceptionFilter {
     } else if (error instanceof ZodError) {
       statusCode = 400;
       message = 'Invalid request.';
+
       errors = error.issues.flatMap((issue) => {
         if (issue.code === 'unrecognized_keys') {
           return issue.keys.map((key) => ({
@@ -52,6 +53,7 @@ export class ErrorFilter implements ExceptionFilter {
     }
 
     const body: ApiResponse<never> = { statusCode, message, data: null, meta: {}, errors };
+
     res.status(statusCode).json(body);
   }
 }

@@ -9,10 +9,12 @@ import { database } from './helpers/database';
 import { LedgerService } from '../src/modules/ledger/ledger.service';
 
 let app: INestApplication;
+
 beforeAll(async () => {
   app = await createApp();
   await app.listen(0, '127.0.0.1');
 });
+
 afterAll(async () => {
   await app?.close();
 });
@@ -22,17 +24,22 @@ async function wallet() {
     .post('/wallets')
     .send({ email: `${randomUUID()}@example.com` })
     .expect(201);
+
   return response.body.data.id as string;
 }
+
 function write(id: string, route: string, body: object, key = randomUUID()) {
   return request(app.getHttpServer())
     .post(`/wallets/${id}/${route}`)
     .set('Idempotency-Key', key)
     .send(body);
 }
+
 async function journal(id: string) {
   const response = await request(app.getHttpServer()).get(`/transactions/${id}/ledger`).expect(200);
+
   expect(response.body.message).toBe('Ledger journal retrieved successfully.');
+
   return response.body.data as Awaited<ReturnType<LedgerService['get']>>;
 }
 
@@ -42,6 +49,7 @@ describe('double-entry postings', () => {
     const b = await wallet();
     const deposit = await write(a, 'deposits', { currency: 'USDx', amount: '10.1' }).expect(201);
     const deposited = await journal(deposit.body.data.id);
+
     expect(
       deposited.entries.map(({ accountKind, walletId, currency, direction, amount }) => ({
         accountKind,
@@ -66,16 +74,20 @@ describe('double-entry postings', () => {
         amount: '10.100000',
       },
     ]);
+
     const transfer = await write(a, 'transfers', {
       recipientWalletId: b,
       fromCurrency: 'USDx',
       toCurrency: 'USDx',
       amount: '3',
     }).expect(201);
+
     const sent = await journal(transfer.body.data.id);
+
     expect(sent.entries).toHaveLength(2);
     expect(sent.entries[0]).toMatchObject({ walletId: a, direction: 'debit', amount: '3.000000' });
     expect(sent.entries[1]).toMatchObject({ walletId: b, direction: 'credit', amount: '3.000000' });
+
     expect(
       (await database(app).query('SELECT * FROM ledger_reconciliation WHERE NOT matches')).rows,
     ).toEqual([]);
@@ -84,7 +96,9 @@ describe('double-entry postings', () => {
   it('balances swaps and cross-currency transfers separately in both currencies', async () => {
     const a = await wallet();
     const b = await wallet();
+
     await write(a, 'deposits', { currency: 'USDx', amount: '10' }).expect(201);
+
     for (const [route, recipient] of [
       ['swaps', a],
       ['transfers', b],
@@ -95,7 +109,9 @@ describe('double-entry postings', () => {
         toCurrency: 'cNGN',
         amount: '2',
       }).expect(201);
+
       const result = await journal(response.body.data.id);
+
       expect(
         result.entries.map(({ accountKind, walletId, currency, direction, amount }) => ({
           accountKind,
@@ -134,10 +150,12 @@ describe('double-entry postings', () => {
           amount: '3200.000000',
         },
       ]);
+
       const totals = await database(app).query(
         'SELECT currency,debits::text,credits::text FROM ledger_journal_totals WHERE journal_id=$1 ORDER BY currency',
         [result.id],
       );
+
       expect(totals.rows).toEqual([
         { currency: 'USDx', debits: '2.000000', credits: '2.000000' },
         { currency: 'cNGN', debits: '3200.000000', credits: '3200.000000' },
@@ -148,21 +166,27 @@ describe('double-entry postings', () => {
   it('creates only one journal across concurrent retries and preserves exact decimal amounts', async () => {
     const id = await wallet();
     const key = randomUUID();
+
     const results = await Promise.all(
       Array.from({ length: 8 }, () =>
         write(id, 'deposits', { currency: 'USDx', amount: '9007199254740993.123456' }, key),
       ),
     );
+
     expect(results.map((result) => result.status).sort()).toEqual([
       200, 200, 200, 200, 200, 200, 200, 201,
     ]);
+
     const transactionId = results[0]!.body.data.id;
+
     const found = await database(app).query(
       'SELECT id FROM ledger_journals WHERE transaction_id=$1',
       [transactionId],
     );
+
     expect(found.rows).toHaveLength(1);
     const entries = await journal(transactionId);
+
     expect(entries.entries.map((entry) => entry.amount)).toEqual([
       '9007199254740993.123456',
       '9007199254740993.123456',
@@ -182,16 +206,20 @@ async function rawDeposit(
 ) {
   const sql = (text: string, bind: unknown[]) =>
     app.get(Sequelize).query(text, { bind, transaction });
+
   const transactionId = randomUUID();
   const journalId = randomUUID();
+
   await sql(
     "INSERT INTO transactions(id,type,destination_wallet_id,source_currency,destination_currency,source_amount,destination_amount,rate) VALUES ($1,'deposit',$2,'USDx','USDx',1,1,1)",
     [transactionId, id],
   );
+
   await sql('INSERT INTO ledger_journals(id,transaction_id) VALUES ($1,$2)', [
     journalId,
     transactionId,
   ]);
+
   for (const [index, line] of lines.entries()) {
     await sql(
       `INSERT INTO ledger_entries(journal_id,line_number,account_id,currency,direction,amount)
@@ -207,12 +235,14 @@ async function rawDeposit(
       ],
     );
   }
+
   return transactionId;
 }
 
 describe('database ledger constraints', () => {
   it('rejects empty, unbalanced, cross-currency-offset, and transaction-mismatched journals at commit', async () => {
     const id = await wallet();
+
     for (const lines of [
       [],
       [{ kind: 'funding', currency: 'USDx', direction: 'debit', amount: '1' }],
@@ -231,6 +261,7 @@ describe('database ledger constraints', () => {
         }),
       ).rejects.toMatchObject({ original: { code: '23514' } });
     }
+
     expect(
       (
         await database(app).query('SELECT id FROM transactions WHERE destination_wallet_id=$1', [
@@ -242,17 +273,20 @@ describe('database ledger constraints', () => {
 
   it('rejects unjournaled transactions and balance changes that disagree with ledger postings', async () => {
     const id = await wallet();
+
     await expect(
       database(app).query(
         "INSERT INTO transactions(type,destination_wallet_id,source_currency,destination_currency,source_amount,destination_amount,rate) VALUES ('deposit',$1,'USDx','USDx',1,1,1)",
         [id],
       ),
     ).rejects.toMatchObject({ original: { constraint: 'transaction_requires_journal' } });
+
     await expect(
       database(app).query("UPDATE balances SET amount=1 WHERE wallet_id=$1 AND currency='USDx'", [
         id,
       ]),
     ).rejects.toMatchObject({ original: { constraint: 'wallet_balance_matches_ledger' } });
+
     await expect(
       app.get(Sequelize).transaction(async (transaction) => {
         await rawDeposit(id, transaction, [
@@ -268,6 +302,7 @@ describe('database ledger constraints', () => {
     const deposited = await write(id, 'deposits', { currency: 'USDx', amount: '1' }).expect(201);
     const result = await journal(deposited.body.data.id);
     const db = database(app);
+
     for (const [sql, bind] of [
       ['UPDATE ledger_entries SET amount=2 WHERE journal_id=$1', [result.id]],
       ['DELETE FROM ledger_entries WHERE journal_id=$1', [result.id]],
@@ -283,12 +318,14 @@ describe('database ledger constraints', () => {
         original: { constraint: 'ledger_append_only' },
       });
     }
+
     await expect(
       db.query(
         "INSERT INTO ledger_entries(journal_id,line_number,account_id,currency,direction,amount) VALUES ($1,3,$2,'USDx','debit',1)",
         [result.id, result.entries[0]!.accountId],
       ),
     ).rejects.toMatchObject({ original: { constraint: 'ledger_journal_sealed' } });
+
     expect(await journal(result.transactionId)).toEqual(result);
   });
 
@@ -296,17 +333,22 @@ describe('database ledger constraints', () => {
     const id = await wallet();
     const key = randomUUID();
     const db = database(app);
+
     await db.query(
       "CREATE FUNCTION test_ledger_late_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Injected final write failure'; END $$",
     );
+
     try {
       await db.query(
         `CREATE TRIGGER test_ledger_late_failure BEFORE INSERT ON idempotency_requests FOR EACH ROW WHEN (NEW.key='${key}') EXECUTE FUNCTION test_ledger_late_failure()`,
       );
+
       await write(id, 'deposits', { currency: 'USDx', amount: '10' }, key).expect(500);
+
       expect(
         (await db.query('SELECT id FROM transactions WHERE destination_wallet_id=$1', [id])).rows,
       ).toEqual([]);
+
       expect(
         (
           await db.query(
@@ -315,9 +357,11 @@ describe('database ledger constraints', () => {
           )
         ).rows,
       ).toEqual([]);
+
       expect(
         (await db.query('SELECT key FROM idempotency_requests WHERE wallet_id=$1', [id])).rows,
       ).toEqual([]);
+
       expect(
         (
           await db.query(
@@ -330,7 +374,9 @@ describe('database ledger constraints', () => {
       await db.query('DROP TRIGGER IF EXISTS test_ledger_late_failure ON idempotency_requests');
       await db.query('DROP FUNCTION test_ledger_late_failure()');
     }
+
     const retry = await write(id, 'deposits', { currency: 'USDx', amount: '10' }, key).expect(201);
+
     expect((await journal(retry.body.data.id)).entries).toHaveLength(2);
   });
 });

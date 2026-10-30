@@ -13,14 +13,17 @@ export class BalancesService {
   async get(id: string) {
     const rows = await this.wallets.balances(id);
     const snapshot = await this.fx.snapshot();
+
     const balances = currencies.map((currency) => {
       const amount = rows.find((row) => row.currency === currency)!.amount;
+
       return {
         currency,
         amount,
         usdValue: money(new D(amount).times(this.fx.rate(snapshot, currency, 'USDx'))),
       };
     });
+
     return {
       walletId: id,
       balances,

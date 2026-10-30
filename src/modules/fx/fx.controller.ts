@@ -9,6 +9,7 @@ export class FxController implements ControllerContract<FxController> {
   @Get()
   async rates() {
     const data = await this.fx.rates();
+
     return { data, message: 'Exchange rates retrieved successfully.' };
   }
 }

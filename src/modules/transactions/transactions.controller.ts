@@ -19,9 +19,11 @@ export class TransactionsController implements ControllerContract<TransactionsCo
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.transactions.deposit(walletId, body, key);
+
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
+
     return { data: result.transaction, message: 'Deposit completed successfully.' };
   }
 
@@ -33,9 +35,11 @@ export class TransactionsController implements ControllerContract<TransactionsCo
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.transactions.swap(walletId, body, key);
+
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
+
     return { data: result.transaction, message: 'Swap completed successfully.' };
   }
 
@@ -47,9 +51,11 @@ export class TransactionsController implements ControllerContract<TransactionsCo
     @Res({ passthrough: true }) response: Response,
   ) {
     const result = await this.transactions.transfer(walletId, body, key);
+
     response
       .status(result.replayed ? 200 : 201)
       .setHeader('Idempotency-Replayed', String(result.replayed));
+
     return { data: result.transaction, message: 'Transfer completed successfully.' };
   }
 }

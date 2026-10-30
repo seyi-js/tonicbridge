@@ -10,6 +10,7 @@ export class LedgerController implements ControllerContract<LedgerController> {
   @Get(':transactionId/ledger')
   async get(@UuidParam('transactionId') transactionId: string) {
     const data = await this.ledger.get(transactionId);
+
     return { data, message: 'Ledger journal retrieved successfully.' };
   }
 }

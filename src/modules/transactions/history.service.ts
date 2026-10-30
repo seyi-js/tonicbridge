@@ -19,7 +19,11 @@ export class HistoryService {
 
   async get(id: string) {
     const record = await this.transactions.findByPk(id);
-    if (!record) throw new DomainError(404, 'TRANSACTION_NOT_FOUND', 'Transaction not found.');
+
+    if (!record) {
+      throw new DomainError(404, 'TRANSACTION_NOT_FOUND', 'Transaction not found.');
+    }
+
     return transactionView(record);
   }
 
@@ -28,17 +32,28 @@ export class HistoryService {
     query: HistoryQueryDto,
   ): Promise<PaginatedResult<ReturnType<typeof transactionView>>> {
     const { type, currency, limit, offset } = query;
+
     const filters: WhereOptions<InferAttributes<WalletTransaction>>[] = [
       { [Op.or]: [{ sourceWalletId: walletId }, { destinationWalletId: walletId }] },
     ];
-    if (type) filters.push({ type });
-    if (currency)
+
+    if (type) {
+      filters.push({ type });
+    }
+
+    if (currency) {
       filters.push({ [Op.or]: [{ sourceCurrency: currency }, { destinationCurrency: currency }] });
+    }
+
     return this.sequelize.transaction(
       { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ, readOnly: true },
       async (transaction) => {
         const wallet = await this.wallets.findByPk(walletId, { attributes: ['id'], transaction });
-        if (!wallet) throw new DomainError(404, 'WALLET_NOT_FOUND', 'Wallet not found.');
+
+        if (!wallet) {
+          throw new DomainError(404, 'WALLET_NOT_FOUND', 'Wallet not found.');
+        }
+
         // Both queries use one repeatable-read transaction, so count and page agree under writes.
         const { count, rows } = await this.transactions.findAndCountAll({
           where: { [Op.and]: filters },
@@ -50,6 +65,7 @@ export class HistoryService {
           ],
           transaction,
         });
+
         return { items: rows.map(transactionView), total: count, limit, offset };
       },
     );

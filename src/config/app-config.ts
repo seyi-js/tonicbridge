@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
+
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z
@@ -20,6 +21,10 @@ export type AppConfig = z.infer<typeof schema>;
 
 export function readConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = schema.safeParse(env);
-  if (!parsed.success) throw new Error('Invalid configuration; check .env.example.');
+
+  if (!parsed.success) {
+    throw new Error('Invalid configuration; check .env.example.');
+  }
+
   return parsed.data;
 }

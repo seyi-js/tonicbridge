@@ -15,18 +15,21 @@ export class WalletsController implements ControllerContract<WalletsController> 
   @Post()
   async create(@ValidatedBody(createWalletSchema) body: CreateWalletDto) {
     const data = await this.wallets.create(body);
+
     return { data, message: 'Wallet created successfully.' };
   }
 
   @Get(':walletId')
   async get(@UuidParam('walletId') id: string) {
     const data = await this.wallets.get(id);
+
     return { data, message: 'Wallet retrieved successfully.' };
   }
 
   @Get(':walletId/balances')
   async getBalances(@UuidParam('walletId') id: string) {
     const data = await this.balances.get(id);
+
     return { data, message: 'Wallet balances retrieved successfully.' };
   }
 }

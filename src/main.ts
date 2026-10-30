@@ -4,6 +4,7 @@ import { readConfig } from './config/app-config';
 
 async function main() {
   const app = await createApp();
+
   await app.listen(readConfig().PORT, '0.0.0.0');
 }
 
