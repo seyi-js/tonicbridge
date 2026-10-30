@@ -38,6 +38,7 @@ TonicBridge is a simulated stablecoin wallet API for Operation Borderless. No bl
 - Wallet history includes deposits, swaps, and transfers where the wallet is sender or receiver. A currency filter matches either side. A transfer has one shared transaction ID and appears once in each participating wallet's history.
 - Pagination uses `limit` (1–100, default 20) and `offset` (default 0); ordering is `createdAt DESC, id DESC`. New writes can shift offset pages; cursor pagination is a future improvement.
 - Transaction details are immutable API records. No deletion/edit endpoints exist.
+- All API responses use `{statusCode, message, data, meta, errors}`. The global interceptor wraps successes; the exception filter wraps failures. History has an array in `data` and `{total, limit, offset}` in `meta`; ordinary responses have empty metadata. Errors have null data and structured code/message entries, with `field` for validation locations. HTTP status and idempotency replay headers are preserved. Swagger assets and the OpenAPI document retain native formats.
 - Validation: HTTP 400. Unknown wallet/transaction: 404. Duplicate identity or reused key with changed contents: 409. Insufficient funds, conversion below minimum, or balance overflow: 422. Unexpected storage failure: sanitized 500/503, never raw SQL or credentials.
 
 ## Verification targets

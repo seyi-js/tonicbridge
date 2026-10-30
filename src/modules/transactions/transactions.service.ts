@@ -105,7 +105,7 @@ export class TransactionsService {
     rawKey: unknown,
     quoteProvider: () => Promise<RateQuote> = async () => identityQuote,
   ) {
-    const key = keySchema.parse(rawKey);
+    const key = keySchema.parse(rawKey, { path: ['idempotency-key'] });
     const fingerprint = createHash('sha256')
       .update(
         JSON.stringify([

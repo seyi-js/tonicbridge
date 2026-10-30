@@ -3,6 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction, WhereOptions, InferAttributes } from 'sequelize';
 import { Repository, Sequelize } from 'sequelize-typescript';
 import { DomainError } from '../../common/errors/domain.error';
+import { PaginatedResult } from '../../common/responses/api-response';
 import { Wallet } from '../wallets/models/wallet.model';
 import { WalletTransaction } from './models/transaction.model';
 import { transactionView } from './transactions.mapper';
@@ -22,7 +23,10 @@ export class HistoryService {
     return transactionView(record);
   }
 
-  async list(walletId: string, query: HistoryQueryDto) {
+  async list(
+    walletId: string,
+    query: HistoryQueryDto,
+  ): Promise<PaginatedResult<ReturnType<typeof transactionView>>> {
     const { type, currency, limit, offset } = query;
     const filters: WhereOptions<InferAttributes<WalletTransaction>>[] = [
       { [Op.or]: [{ sourceWalletId: walletId }, { destinationWalletId: walletId }] },

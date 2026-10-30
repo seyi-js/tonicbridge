@@ -55,24 +55,24 @@ it('reads pre-ORM rows after restart and replays a legacy request without credit
   await app.listen(0, '127.0.0.1');
   const http = request(app.getHttpServer());
   const wallet = await http.get(`/wallets/${walletId}`).expect(200);
-  expect(wallet.body).toEqual({ id: walletId, email, phone: null, createdAt });
+  expect(wallet.body.data).toEqual({ id: walletId, email, phone: null, createdAt });
   const replay = await http
     .post(`/wallets/${walletId}/deposits`)
     .set('Idempotency-Key', key)
     .send({ currency: 'USDx', amount })
     .expect(200);
   expect(replay.headers['idempotency-replayed']).toBe('true');
-  expect(replay.body).toMatchObject({
+  expect(replay.body.data).toMatchObject({
     id: transactionId,
     sourceAmount: amount,
     destinationAmount: amount,
     createdAt,
   });
   const balance = await http.get(`/wallets/${walletId}/balances`).expect(200);
-  expect(balance.body.totalUsd).toBe(amount);
+  expect(balance.body.data.totalUsd).toBe(amount);
   const history = await http.get(`/wallets/${walletId}/transactions`).expect(200);
-  expect(history.body.total).toBe(1);
-  expect(history.body.items[0]).toEqual(replay.body);
+  expect(history.body.meta.total).toBe(1);
+  expect(history.body.data[0]).toEqual(replay.body.data);
   const migrationsAfter = await database(app).query(
     'SELECT name,applied_at FROM schema_migrations ORDER BY name',
   );

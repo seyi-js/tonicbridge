@@ -66,7 +66,7 @@ The complete contract is [docs/openapi.json](docs/openapi.json); it can also be 
 | GET    | `/rates`                          | All 25 directed pairs, including identity pairs   |
 | GET    | `/health`                         | Database readiness                                |
 
-Create two wallets, then copy their returned `id` values into the variables below. Change the sample identities if they already exist.
+Create two wallets, then copy their returned `data.id` values into the variables below. Change the sample identities if they already exist.
 
 ```bash
 curl -sS http://localhost:3000/wallets \
@@ -110,7 +110,7 @@ curl -sS "http://localhost:3000/wallets/$WALLET_ID/transactions?type=transfer&cu
 curl -sS http://localhost:3000/rates
 ```
 
-In fixed mode, the first wallet finishes with 85 USDx and 16000 cNGN; the recipient receives 4.5 EURx. Use the same `fromCurrency` and `toCurrency` for a same-currency transfer. History returns `{items, total, limit, offset}` in `createdAt DESC, id DESC` order. `currency` matches either side of a transaction; `type` accepts `deposit`, `swap`, or `transfer`. Limit is 1–100, default 20; offset is 0–2147483647, default 0. Unknown query/body fields are rejected.
+In fixed mode, the first wallet finishes with 85 USDx and 16000 cNGN; the recipient receives 4.5 EURx. Use the same `fromCurrency` and `toCurrency` for a same-currency transfer. History returns the transaction array in `data` in `createdAt DESC, id DESC` order, with `{total, limit, offset}` in `meta`. `currency` matches either side of a transaction; `type` accepts `deposit`, `swap`, or `transfer`. Limit is 1–100, default 20; offset is 0–2147483647, default 0. Unknown query/body fields are rejected.
 
 For an automated walkthrough against a running API:
 
@@ -121,6 +121,38 @@ yarn smoke
 
 This creates synthetic wallets and verifies deposits, retries, swaps, transfers, balances, history, rates, and the published contract URL.
 
+## Response format
+
+Every API response contains `statusCode`, `message`, `data`, `meta`, and `errors`. `statusCode` matches the HTTP status, including 201 for a new money operation and 200 for an idempotent replay. Ordinary successes have `meta: {}` and `errors: []`.
+
+An empty transaction history:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Request successful.",
+  "data": [],
+  "meta": { "total": 0, "limit": 20, "offset": 0 },
+  "errors": []
+}
+```
+
+Validation failures report each issue separately, with its location. Body fields use `body.*`, query fields use `query.*`, path parameters use their name, and the request key uses `idempotency-key`:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Invalid request.",
+  "data": null,
+  "meta": {},
+  "errors": [{ "code": "VALIDATION_ERROR", "field": "body.email", "message": "Invalid email" }]
+}
+```
+
+Domain and framework errors use the same envelope, with code/message entries in `errors`; `field` is present for validation issues. Unknown routes, malformed JSON, and sanitized server errors follow this format. Swagger HTML and `/openapi.json` keep their native formats for tooling.
+
+This changes the earlier response shape: read resources from `data`, history pagination from `meta`, and error codes from `errors[].code`. Request payloads and HTTP status codes are unchanged.
+
 ## Project structure
 
 This is a **NestJS backend API**. Features have their own Nest modules, controllers, services, DTOs, and Sequelize models:
@@ -128,14 +160,16 @@ This is a **NestJS backend API**. Features have their own Nest modules, controll
 ```text
 src/
   main.ts                         # Process entry point
-  bootstrap.ts                    # App creation, error filter, and Swagger
+  bootstrap.ts                    # App creation, response handling, and Swagger
   app.module.ts                   # Root module
   config/                         # Validated environment configuration
   database/                       # Sequelize connection and migration runner
   common/
-    decorators/                   # Validated body, query, and UUID parameters
+    decorators/                   # Input validation and paginated response metadata
     errors/                       # Domain errors
-    filters/                      # HTTP error responses
+    filters/                      # Uniform HTTP error responses
+    interceptors/                 # Uniform success responses
+    responses/                    # Shared envelope and pagination types
     pipes/                        # DTO validation and normalization
     money.ts                      # Decimal arithmetic and shared schemas
   modules/
@@ -162,7 +196,7 @@ migrations/                       # Versioned SQL schema migrations
 test/                             # HTTP, database, and financial-safety tests
 ```
 
-Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. The OpenAPI contract is unchanged by the ORM migration.
+Controllers use `@ValidatedBody(schema)`, `@ValidatedQuery(schema)`, and `@UuidParam(name)` to validate and normalize inputs through the shared Zod pipe before delegating to services. Services receive Sequelize repositories through `@InjectModel`; mappers produce the public response shapes. Models use explicit column types and map camelCase properties to the existing snake_case database columns. A global response interceptor formats successful results; the global exception filter formats failures using the same envelope. `@PaginatedResponse()` marks history for moving pagination into `meta`.
 
 ## Data model and correctness
 
@@ -184,7 +218,7 @@ A transfer has one transaction ID and appears once in each participant's history
 
 **Idempotency.** All money endpoints require an 8–128 character `Idempotency-Key` containing letters, digits, dots, colons, underscores, or hyphens. Scope is the owning/sending wallet across all money endpoints. Normalized UUIDs and amounts make `10`, `10.0`, and `10.000000` equivalent. A fast replay lookup avoids unnecessary FX requests; a second lookup under the wallet lock handles races. FX network work happens before locks. Failed operations do not consume a key. A successful retry returns the stored amounts/rate even if current rates have changed. Keys are retained indefinitely in this prototype. After a timeout or uncertain response, retry the same request with the same key.
 
-**Errors.** Responses use `{code, message}`. Invalid input is 400, unknown records 404, duplicate identities/key conflicts 409, and insufficient funds/overflow/sub-minimum conversions 422. Unexpected errors return a sanitized 500; readiness returns 503 if PostgreSQL is unavailable. Raw SQL, credentials, and request payloads are not included in unexpected-error logs. Migration failure prevents startup.
+**Errors.** Responses use the envelope below with `data: null`, `meta: {}`, and a nonempty `errors` array. Stable application codes (for example, `INSUFFICIENT_FUNDS`) are in `errors[].code`. Invalid input is 400, unknown records 404, duplicate identities/key conflicts 409, and insufficient funds/overflow/sub-minimum conversions 422. Unexpected errors return a sanitized 500; readiness returns 503 if PostgreSQL is unavailable. Raw SQL, credentials, and request payloads are not included in unexpected-error logs. Migration failure prevents startup.
 
 ## Exchange rates and fallback
 

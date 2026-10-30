@@ -31,6 +31,8 @@ Wait for the `listening` event before running the check. `SIMULATION_URL` overri
 
 <!-- begin:observations -->
 
+2026-10-30: After the uniform response change, `node scripts/check-fx.mjs` passed with the compiled app, real local PostgreSQL, and Postman CLI 1.73.0. The smoke walkthrough asserted the envelope fields and matching HTTP/body status on every API call, verified history pagination in `meta`, and compared transaction `data` across creation and replay. The simulation logged the expected GET for `fx`; the injected 503 and latency conditions answered before their handlers. All three scenarios persisted the expected live/fixed conversions. This verifies the app against these fixtures, not the public provider's current availability.
+
 2026-10-30: `yarn check:fx` passed after the NestJS/Sequelize refactor using compiled application code and the existing PostgreSQL database. `fx` served the expected GET; `fx-error` and `fx-slow` remained silent because their injected conditions answered before the handlers. All three API walkthroughs passed, including persisted conversions and idempotent retries.
 
 2026-10-29: `yarn check:fx` passed with real PostgreSQL. `fx` received the documented GET and the application stored the fixture rate. `fx-error` and `fx-slow` injected failures before the member handler, so they emitted no member request event; both API runs committed labelled fixed-rate conversions within the time bound. No other dependencies are modelled.

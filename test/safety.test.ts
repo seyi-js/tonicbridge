@@ -20,7 +20,7 @@ async function wallet() {
     .post('/wallets')
     .send({ email: `${randomUUID()}@example.com` })
     .expect(201);
-  return response.body.id as string;
+  return response.body.data.id as string;
 }
 function write(app: INestApplication, id: string, route: string, body: object, key = randomUUID()) {
   return request(app.getHttpServer())
@@ -108,7 +108,7 @@ describe('financial safety across independent API instances', () => {
     const history = await request(second.getHttpServer())
       .get(`/wallets/${a}/transactions`)
       .expect(200);
-    expect(history.body.total).toBe(2);
+    expect(history.body.meta.total).toBe(2);
   });
   it('rolls back both balance updates when transaction insertion fails and allows the same key to retry', async () => {
     const a = await wallet();
@@ -124,8 +124,11 @@ describe('financial safety across independent API instances', () => {
         FOR EACH ROW WHEN (NEW.source_wallet_id='${a}'::uuid) EXECUTE FUNCTION test_reject_transaction()`);
       const failed = await write(first, a, 'transfers', move(b, '4'), key).expect(500);
       expect(failed.body).toEqual({
-        code: 'INTERNAL_ERROR',
+        statusCode: 500,
         message: 'The request could not be completed.',
+        data: null,
+        meta: {},
+        errors: [{ code: 'INTERNAL_ERROR', message: 'The request could not be completed.' }],
       });
       expect(await balance(a)).toBe('10.000000');
       expect(await balance(b)).toBe('0.000000');

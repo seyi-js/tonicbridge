@@ -18,13 +18,13 @@ describe('wallets', () => {
       .post('/wallets')
       .send({ email: ` ${email.toUpperCase()} ` })
       .expect(201);
-    expect(result.body.email).toBe(email);
+    expect(result.body.data.email).toBe(email);
     const stored = await database(app).query('SELECT amount FROM balances WHERE wallet_id=$1', [
-      result.body.id,
+      result.body.data.id,
     ]);
     expect(stored.rows).toHaveLength(5);
     expect(stored.rows.every((r) => r.amount === '0.000000')).toBe(true);
-    await request(app.getHttpServer()).get(`/wallets/${result.body.id}`).expect(200);
+    await request(app.getHttpServer()).get(`/wallets/${result.body.data.id}`).expect(200);
     await request(app.getHttpServer()).post('/wallets').send({ email }).expect(409);
   });
   it('protects email and phone uniqueness under concurrent creation', async () => {
@@ -58,7 +58,7 @@ async function wallet() {
     .post('/wallets')
     .send({ email: `${randomUUID()}@example.com` })
     .expect(201);
-  return res.body.id as string;
+  return res.body.data.id as string;
 }
 async function amount(walletId: string, currency = 'USDx') {
   const res = await database(app).query(
@@ -80,7 +80,7 @@ describe('deposits', () => {
     const responses = await Promise.all(Array.from({ length: 8 }, () => deposit(id, '10.1', key)));
     expect(responses.filter((r) => r.status === 201)).toHaveLength(1);
     expect(responses.filter((r) => r.status === 200)).toHaveLength(7);
-    expect(new Set(responses.map((r) => r.body.id)).size).toBe(1);
+    expect(new Set(responses.map((r) => r.body.data.id)).size).toBe(1);
     expect(await amount(id)).toBe('10.100000');
     const replay = await deposit(id, '10.100000', key).expect(200);
     expect(replay.headers['idempotency-replayed']).toBe('true');
@@ -125,14 +125,14 @@ describe('rates and balances', () => {
     await deposit(id, '1600', randomUUID(), 'cNGN').expect(201);
     await deposit(id, '2').expect(201);
     const response = await request(app.getHttpServer()).get(`/wallets/${id}/balances`).expect(200);
-    expect(response.body.totalUsd).toBe('3.000000');
-    expect(response.body.balances).toHaveLength(5);
-    expect(response.body.rateSource).toBe('fixed');
+    expect(response.body.data.totalUsd).toBe('3.000000');
+    expect(response.body.data.balances).toHaveLength(5);
+    expect(response.body.data.rateSource).toBe('fixed');
     expect(
-      response.body.balances.find((b: { currency: string }) => b.currency === 'cNGN').usdValue,
+      response.body.data.balances.find((b: { currency: string }) => b.currency === 'cNGN').usdValue,
     ).toBe('1.000000');
     const rates = await request(app.getHttpServer()).get('/rates').expect(200);
-    expect(rates.body.rates).toHaveLength(25);
+    expect(rates.body.data.rates).toHaveLength(25);
     await request(app.getHttpServer()).get(`/wallets/${randomUUID()}/balances`).expect(404);
   });
 });
@@ -143,7 +143,7 @@ afterAll(async () => {
 describe('application startup', () => {
   it('starts against real PostgreSQL and publishes the API contract', async () => {
     const health = await request(app.getHttpServer()).get('/health').expect(200);
-    expect(health.body).toEqual({ status: 'ok' });
+    expect(health.body.data).toEqual({ status: 'ok' });
     const docs = await request(app.getHttpServer()).get('/openapi.json').expect(200);
     expect(docs.body.info.title).toBe('TonicBridge');
   });
@@ -165,8 +165,8 @@ describe('swaps', () => {
     );
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(results.filter((r) => r.status === 200)).toHaveLength(7);
-    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
-    expect(results[0]!.body).toMatchObject({
+    expect(new Set(results.map((r) => r.body.data.id)).size).toBe(1);
+    expect(results[0]!.body.data).toMatchObject({
       type: 'swap',
       sourceWalletId: id,
       destinationWalletId: id,
@@ -186,7 +186,7 @@ describe('swaps', () => {
     const id = await wallet();
     const key = randomUUID();
     const failed = await swap(id, '2', 'USDx', 'cNGN', key).expect(422);
-    expect(failed.body.code).toBe('INSUFFICIENT_FUNDS');
+    expect(failed.body.errors[0].code).toBe('INSUFFICIENT_FUNDS');
     expect(await amount(id, 'cNGN')).toBe('0.000000');
     await deposit(id, '2').expect(201);
     await swap(id, '2', 'USDx', 'cNGN', key).expect(201);
@@ -197,7 +197,7 @@ describe('swaps', () => {
     const id = await wallet();
     await deposit(id, '2', randomUUID(), 'cNGN').expect(201);
     const result = await swap(id, '1.234567', 'cNGN', 'USDx').expect(201);
-    expect(result.body.destinationAmount).toBe('0.000771');
+    expect(result.body.data.destinationAmount).toBe('0.000771');
     expect(await amount(id, 'cNGN')).toBe('0.765433');
     await swap(id, '0.000001', 'cNGN', 'USDx').expect(422);
     expect(await amount(id, 'cNGN')).toBe('0.765433');
@@ -210,7 +210,7 @@ describe('swaps', () => {
     await deposit(id, '1').expect(201);
     const key = randomUUID();
     const result = await swap(id, '1', 'USDx', 'cNGN', key).expect(422);
-    expect(result.body.code).toBe('BALANCE_LIMIT');
+    expect(result.body.errors[0].code).toBe('BALANCE_LIMIT');
     expect(await amount(id)).toBe('1.000000');
     expect(await amount(id, 'cNGN')).toBe('999999999999999999.999999');
     const records = await database(app).query(
@@ -245,8 +245,8 @@ describe('transfers', () => {
     );
     expect(results.filter((r) => r.status === 201)).toHaveLength(1);
     expect(results.filter((r) => r.status === 200)).toHaveLength(7);
-    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
-    expect(results[0]!.body).toMatchObject({
+    expect(new Set(results.map((r) => r.body.data.id)).size).toBe(1);
+    expect(results[0]!.body.data).toMatchObject({
       type: 'transfer',
       sourceWalletId: sender,
       destinationWalletId: recipient,
@@ -269,7 +269,7 @@ describe('transfers', () => {
     const recipient = await wallet();
     await deposit(sender, '1600', randomUUID(), 'cNGN').expect(201);
     const response = await transfer(sender, recipient, '1600', 'cNGN', 'cGHS').expect(201);
-    expect(response.body).toMatchObject({
+    expect(response.body.data).toMatchObject({
       sourceWalletId: sender,
       destinationWalletId: recipient,
       sourceCurrency: 'cNGN',
@@ -280,7 +280,7 @@ describe('transfers', () => {
       rateSource: 'fixed',
       rateUpdatedAt: '2026-10-29T00:00:00.000Z',
     });
-    expect(Date.parse(response.body.createdAt)).toBeGreaterThan(0);
+    expect(Date.parse(response.body.data.createdAt)).toBeGreaterThan(0);
     expect(await amount(sender, 'cNGN')).toBe('0.000000');
     expect(await amount(recipient, 'cGHS')).toBe('15.000000');
   });
@@ -326,37 +326,37 @@ describe('transaction history', () => {
     const read = (query = '') =>
       request(app.getHttpServer()).get(`/wallets/${id}/transactions${query}`);
     const all = await read().expect(200);
-    expect(all.body.total).toBe(4);
-    expect(all.body.items.map((t: { id: string }) => t.id)).toEqual([
-      received.body.id,
-      sent.body.id,
-      exchanged.body.id,
-      funded.body.id,
+    expect(all.body.meta.total).toBe(4);
+    expect(all.body.data.map((t: { id: string }) => t.id)).toEqual([
+      received.body.data.id,
+      sent.body.data.id,
+      exchanged.body.data.id,
+      funded.body.data.id,
     ]);
     const page = await read('?limit=2&offset=1').expect(200);
-    expect(page.body).toMatchObject({ total: 4, limit: 2, offset: 1 });
-    expect(page.body.items.map((t: { id: string }) => t.id)).toEqual([
-      sent.body.id,
-      exchanged.body.id,
+    expect(page.body.meta).toMatchObject({ total: 4, limit: 2, offset: 1 });
+    expect(page.body.data.map((t: { id: string }) => t.id)).toEqual([
+      sent.body.data.id,
+      exchanged.body.data.id,
     ]);
     const filtered = await read('?type=transfer&currency=EURx').expect(200);
-    expect(filtered.body.total).toBe(1);
-    expect(filtered.body.items[0].id).toBe(received.body.id);
+    expect(filtered.body.meta.total).toBe(1);
+    expect(filtered.body.data[0].id).toBe(received.body.data.id);
     const sourceCurrency = await read('?type=transfer&currency=USDx').expect(200);
-    expect(sourceCurrency.body.total).toBe(2);
+    expect(sourceCurrency.body.meta.total).toBe(2);
     const beyond = await read('?offset=100').expect(200);
-    expect(beyond.body).toMatchObject({ items: [], total: 4 });
+    expect(beyond.body).toMatchObject({ data: [], meta: { total: 4 } });
     const recipientHistory = await request(app.getHttpServer())
       .get(`/wallets/${other}/transactions`)
       .expect(200);
-    expect(recipientHistory.body.items.map((t: { id: string }) => t.id)).toEqual([
-      received.body.id,
-      sent.body.id,
+    expect(recipientHistory.body.data.map((t: { id: string }) => t.id)).toEqual([
+      received.body.data.id,
+      sent.body.data.id,
     ]);
     const detail = await request(app.getHttpServer())
-      .get(`/transactions/${received.body.id}`)
+      .get(`/transactions/${received.body.data.id}`)
       .expect(200);
-    expect(detail.body).toEqual(received.body);
+    expect(detail.body.data).toEqual(received.body.data);
   });
   it('breaks timestamp ties by transaction ID descending', async () => {
     const id = await wallet();
@@ -369,18 +369,18 @@ describe('transaction history', () => {
       .get(`/wallets/${id}/transactions?limit=2&offset=1`)
       .expect(200);
     const ids = results
-      .map((r) => r.body.id as string)
+      .map((r) => r.body.data.id as string)
       .sort()
       .reverse()
       .slice(1);
-    expect(read.body.items.map((t: { id: string }) => t.id)).toEqual(ids);
+    expect(read.body.data.map((t: { id: string }) => t.id)).toEqual(ids);
   });
   it('returns an empty history and rejects malformed queries or unknown records', async () => {
     const id = await wallet();
     const response = await request(app.getHttpServer())
       .get(`/wallets/${id}/transactions`)
       .expect(200);
-    expect(response.body).toEqual({ items: [], total: 0, limit: 20, offset: 0 });
+    expect(response.body).toMatchObject({ data: [], meta: { total: 0, limit: 20, offset: 0 } });
     for (const query of [
       'limit=0',
       'limit=101',

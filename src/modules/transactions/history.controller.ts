@@ -1,4 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
+import { PaginatedResponse } from '../../common/decorators/paginated-response.decorator';
 import { UuidParam, ValidatedQuery } from '../../common/decorators/validation.decorators';
 import { historySchema, HistoryQueryDto } from './dto/history-query.dto';
 import { HistoryService } from './history.service';
@@ -8,6 +9,7 @@ export class HistoryController {
   constructor(@Inject(HistoryService) private readonly history: HistoryService) {}
 
   @Get('wallets/:walletId/transactions')
+  @PaginatedResponse()
   list(
     @UuidParam('walletId') walletId: string,
     @ValidatedQuery(historySchema) query: HistoryQueryDto,

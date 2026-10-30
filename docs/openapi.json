@@ -3,7 +3,7 @@
   "info": {
     "title": "TonicBridge",
     "version": "1.0.0",
-    "description": "Operation Borderless: simulated wallets, no authentication or real funds. Monetary amounts are decimal strings. See docs/decisions.md."
+    "description": "Operation Borderless: simulated wallets, no authentication or real funds. Monetary amounts are decimal strings. See docs/decisions.md. API responses use {statusCode, message, data, meta, errors}. History data is an array with total, limit, and offset in meta. Errors have null data and structured error details."
   },
   "servers": [
     {
@@ -22,13 +22,54 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Health"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HealthResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 200,
+                  "message": "Request successful.",
+                  "data": {
+                    "status": "ok"
+                  },
+                  "meta": {},
+                  "errors": []
                 }
               }
             }
           },
           "503": {
             "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [503]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -60,7 +101,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Wallet"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/WalletResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [201]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -70,13 +122,58 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 400,
+                  "message": "Invalid request.",
+                  "data": null,
+                  "meta": {},
+                  "errors": [
+                    {
+                      "code": "VALIDATION_ERROR",
+                      "field": "body.email",
+                      "message": "Invalid email"
+                    }
+                  ]
                 }
               }
             }
           },
           "409": {
             "description": "Identity already registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [409]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -108,7 +205,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Wallet"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/WalletResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -118,13 +226,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "404": {
             "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -156,7 +296,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Balances"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/BalancesResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -166,13 +317,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "404": {
             "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -224,7 +407,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [201]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -242,7 +436,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -260,7 +465,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -270,7 +486,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -280,7 +507,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [409]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -290,13 +528,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [422]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "503": {
             "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [503]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -348,7 +618,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [201]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -366,7 +647,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -384,7 +676,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -394,7 +697,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -404,7 +718,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [409]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -414,13 +739,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [422]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "503": {
             "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [503]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -472,7 +829,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [201]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -490,7 +858,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             },
@@ -508,7 +887,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -518,7 +908,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -528,7 +929,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [409]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -538,13 +950,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [422]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "503": {
             "description": "Storage unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [503]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -612,7 +1056,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/History"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/HistoryResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "statusCode": 200,
+                  "message": "Request successful.",
+                  "data": [],
+                  "meta": {
+                    "total": 0,
+                    "limit": 20,
+                    "offset": 0
+                  },
+                  "errors": []
                 }
               }
             }
@@ -622,13 +1088,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "404": {
             "description": "Wallet not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -661,7 +1159,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Transaction"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/TransactionResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -671,13 +1180,45 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [400]
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
           },
           "404": {
             "description": "Transaction not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [404]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
             "content": {
               "application/json": {
                 "schema": {
@@ -699,7 +1240,28 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Rates"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/RatesResponse"
+                    },
+                    {
+                      "properties": {
+                        "statusCode": {
+                          "enum": [200]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Framework or unexpected failure in the uniform error format. Unexpected server details are sanitized.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -714,14 +1276,32 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "code": {
-            "type": "string"
+          "statusCode": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599,
+            "description": "Matches the HTTP response status."
           },
           "message": {
             "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "nullable": true,
+            "enum": [null]
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "minItems": 1
           }
         },
-        "required": ["code", "message"]
+        "required": ["statusCode", "message", "data", "meta", "errors"]
       },
       "Wallet": {
         "type": "object",
@@ -997,29 +1577,6 @@
         },
         "required": ["walletId", "balances", "totalUsd", "rateSource", "rateUpdatedAt"]
       },
-      "History": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Transaction"
-            }
-          },
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "limit": {
-            "type": "integer"
-          },
-          "offset": {
-            "type": "integer"
-          }
-        },
-        "required": ["items", "total", "limit", "offset"]
-      },
       "Health": {
         "type": "object",
         "additionalProperties": false,
@@ -1030,6 +1587,226 @@
           }
         },
         "required": ["status"]
+      },
+      "ResponseError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable application error code."
+          },
+          "message": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string",
+            "description": "Validation location, such as body.amount, query.limit, walletId, or idempotency-key."
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "EmptyMeta": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647
+          }
+        },
+        "required": ["total", "limit", "offset"]
+      },
+      "WalletResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Wallet"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
+      },
+      "TransactionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
+      },
+      "RatesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Rates"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
+      },
+      "BalancesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Balances"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Health"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/EmptyMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
+      },
+      "HistoryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer",
+            "minimum": 200,
+            "maximum": 299,
+            "description": "Matches the HTTP response status."
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMeta"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponseError"
+            },
+            "maxItems": 0
+          }
+        },
+        "required": ["statusCode", "message", "data", "meta", "errors"]
       }
     }
   }
