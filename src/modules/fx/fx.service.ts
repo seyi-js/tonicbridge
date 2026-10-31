@@ -1,5 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
+import { AppLogger } from '../../common/logging/app-logger';
 import { APP_CONFIG, AppConfig } from '../../config/app-config';
 import { currencies, Currency, D } from '../../common/money';
 
@@ -27,13 +28,14 @@ const providerSchema = z.object({
 
 @Injectable()
 export class FxService {
-  private readonly logger = new Logger(FxService.name);
-
   private cached?: { snapshot: RateSnapshot; expiresAt: number };
 
   private pending?: Promise<RateSnapshot>;
 
-  constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
+  constructor(
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @Inject(AppLogger) private readonly logger: AppLogger,
+  ) {}
 
   rate(snapshot: RateSnapshot, from: Currency, to: Currency): string {
     return new D(snapshot.perUsd[to]).div(snapshot.perUsd[from]).toFixed(12);
@@ -63,6 +65,9 @@ export class FxService {
   }
 
   private async refresh(): Promise<RateSnapshot> {
+    const started = performance.now();
+    let reason = 'network_or_timeout';
+
     try {
       const response = await fetch(
         `${this.config.FX_BASE_URL.replace(/\/$/, '')}/v1/currencies/usd.json`,
@@ -74,12 +79,16 @@ export class FxService {
       );
 
       if (!response.ok) {
+        reason = 'http_status';
+
         throw new Error('FX provider status');
       }
 
       const reader = response.body?.getReader();
 
       if (!reader) {
+        reason = 'missing_body';
+
         throw new Error('FX body missing');
       }
 
@@ -96,6 +105,7 @@ export class FxService {
         size += chunk.value.length;
 
         if (size > 262144) {
+          reason = 'body_too_large';
           await reader.cancel();
 
           throw new Error('FX body too large');
@@ -104,6 +114,7 @@ export class FxService {
         chunks.push(chunk.value);
       }
 
+      reason = 'invalid_response';
       const data = providerSchema.parse(JSON.parse(Buffer.concat(chunks).toString('utf8')));
       const timestamp = Date.parse(`${data.date}T00:00:00.000Z`);
 
@@ -113,6 +124,8 @@ export class FxService {
         timestamp > Date.now() + 300000 ||
         Date.now() - timestamp > 3 * 86400000
       ) {
+        reason = 'invalid_date';
+
         throw new Error('FX publication date invalid or stale');
       }
 
@@ -133,16 +146,25 @@ export class FxService {
           currencies.some((to) => new D(this.rate(snapshot, from, to)).lte(0)),
         )
       ) {
+        reason = 'invalid_rate';
+
         throw new Error('FX pair is below the supported rate precision');
       }
 
       this.cached = { snapshot, expiresAt: Date.now() + this.config.FX_CACHE_SECONDS * 1000 };
 
+      this.logger.debug('fx.refreshed', {
+        rateSource: 'live',
+        durationMs: Math.round(performance.now() - started),
+      });
+
       return snapshot;
     } catch {
-      this.logger.warn(
-        'FX provider unavailable or invalid; using explicitly labelled fixed sandbox rates.',
-      );
+      this.logger.warn('fx.fallback', {
+        rateSource: 'fixed',
+        reason,
+        durationMs: Math.round(performance.now() - started),
+      });
 
       // Short cooldown prevents request storms while allowing recovery on the next refresh.
       this.cached = { snapshot: FIXED_RATES, expiresAt: Date.now() + 60000 };

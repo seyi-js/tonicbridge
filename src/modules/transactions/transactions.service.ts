@@ -3,6 +3,9 @@ import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { createHash } from 'node:crypto';
 import { Op, Transaction } from 'sequelize';
 import { Repository, Sequelize } from 'sequelize-typescript';
+import { AppLogger } from '../../common/logging/app-logger';
+import { RequestContext } from '../../common/logging/request-context';
+import { errorFields } from '../../common/logging/error-fields';
 import { DomainError } from '../../common/errors/domain.error';
 import { converted, Currency } from '../../common/money';
 import { FxService } from '../fx/fx.service';
@@ -26,6 +29,8 @@ export class TransactionsService {
     @InjectModel(WalletTransaction) private readonly transactions: Repository<WalletTransaction>,
     @InjectModel(IdempotencyRequest) private readonly requests: Repository<IdempotencyRequest>,
     @Inject(FxService) private readonly fx: FxService,
+    @Inject(AppLogger) private readonly logger: AppLogger,
+    @Inject(RequestContext) private readonly context: RequestContext,
   ) {}
 
   deposit(walletId: string, input: DepositDto, key: unknown) {
@@ -91,7 +96,11 @@ export class TransactionsService {
   }
 
   private async replay(stored: IdempotencyRequest, fingerprint: string, transaction?: Transaction) {
+    this.context.identify({ transactionId: stored.transactionId });
+
     if (stored.fingerprint !== fingerprint) {
+      this.logger.warn('transaction.idempotency_conflict', { transactionId: stored.transactionId });
+
       throw new DomainError(
         409,
         'IDEMPOTENCY_CONFLICT',
@@ -105,6 +114,11 @@ export class TransactionsService {
       throw new Error('Idempotency record has no transaction');
     }
 
+    this.logger.info('transaction.replayed', {
+      transactionId: original.id,
+      operation: original.type,
+    });
+
     return { transaction: transactionView(original), replayed: true };
   }
 
@@ -113,6 +127,8 @@ export class TransactionsService {
     rawKey: unknown,
     quoteProvider: () => Promise<RateQuote> = async () => identityQuote,
   ) {
+    this.logger.debug('transaction.requested', { operation: input.type });
+
     const key = keySchema.parse(rawKey, { path: ['idempotency-key'] });
 
     const fingerprint = createHash('sha256')
@@ -135,62 +151,129 @@ export class TransactionsService {
     }
 
     // External FX calls finish before acquiring any wallet locks.
+    const quoteStarted = performance.now();
     const quote = await quoteProvider();
 
-    return this.sequelize.transaction(
-      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
-      async (transaction) => {
-        const ids = [...new Set([input.walletId, input.recipientId])].sort();
+    this.logger.debug('transaction.rate_obtained', {
+      operation: input.type,
+      rateSource: quote.source,
+      durationMs: Math.round(performance.now() - quoteStarted),
+    });
 
-        // A single ordered query locks parents consistently; NO KEY UPDATE permits FK checks.
-        const locked = await this.wallets.findAll({
-          attributes: ['id'],
-          where: { id: { [Op.in]: ids } },
-          order: [['id', 'ASC']],
-          lock: transaction.LOCK.NO_KEY_UPDATE,
-          transaction,
+    const started = performance.now();
+    const progress: { phase: 'begin' | 'work' | 'commit' } = { phase: 'begin' };
+
+    try {
+      const result = await this.sequelize.transaction(
+        { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+        async (transaction) => {
+          progress.phase = 'work';
+          this.logger.debug('transaction.started', { operation: input.type });
+
+          const ids = [...new Set([input.walletId, input.recipientId])].sort();
+
+          const lockStarted = performance.now();
+
+          this.logger.debug('wallet.locks_waiting', { walletCount: ids.length });
+
+          // A single ordered query locks parents consistently; NO KEY UPDATE permits FK checks.
+          const locked = await this.wallets.findAll({
+            attributes: ['id'],
+            where: { id: { [Op.in]: ids } },
+            order: [['id', 'ASC']],
+            lock: transaction.LOCK.NO_KEY_UPDATE,
+            transaction,
+          });
+
+          this.logger.debug('wallet.locks_acquired', {
+            walletCount: locked.length,
+            waitMs: Math.round(performance.now() - lockStarted),
+          });
+
+          if (locked.length !== ids.length) {
+            throw new DomainError(404, 'WALLET_NOT_FOUND', 'Source or recipient wallet not found.');
+          }
+
+          const previous = await this.requests.findOne({
+            where: { walletId: input.walletId, key },
+            transaction,
+          });
+
+          if (previous) {
+            const replay = await this.replay(previous, fingerprint, transaction);
+
+            progress.phase = 'commit';
+
+            return replay;
+          }
+
+          const destinationAmount = converted(input.amount, quote.rate);
+
+          const savedTransaction = await this.transactions.create(
+            {
+              type: input.type,
+              sourceWalletId: input.type === 'deposit' ? null : input.walletId,
+              destinationWalletId: input.recipientId,
+              sourceCurrency: input.from,
+              destinationCurrency: input.to,
+              sourceAmount: input.amount,
+              destinationAmount,
+              rate: quote.rate,
+              rateSource: quote.source,
+              rateUpdatedAt: quote.updatedAt ? new Date(quote.updatedAt) : null,
+            },
+            { transaction },
+          );
+
+          this.context.identify({ transactionId: savedTransaction.id });
+
+          this.logger.debug('transaction.record_prepared', {
+            transactionId: savedTransaction.id,
+            operation: input.type,
+          });
+
+          await this.ledger.post(savedTransaction, transaction);
+
+          await this.requests.create(
+            { walletId: input.walletId, key, fingerprint, transactionId: savedTransaction.id },
+            { transaction },
+          );
+
+          this.logger.debug('transaction.commit_requested', { transactionId: savedTransaction.id });
+          progress.phase = 'commit';
+
+          return { transaction: transactionView(savedTransaction), replayed: false };
+        },
+      );
+
+      // Await the managed transaction itself: even afterCommit hooks can run on a failed commit in Sequelize 6.
+      if (!result.replayed) {
+        this.logger.info('transaction.committed', {
+          transactionId: result.transaction.id,
+          operation: input.type,
+          durationMs: Math.round(performance.now() - started),
         });
+      }
 
-        if (locked.length !== ids.length) {
-          throw new DomainError(404, 'WALLET_NOT_FOUND', 'Source or recipient wallet not found.');
-        }
+      return result;
+    } catch (error) {
+      // Sequelize attempts rollback for callback errors but suppresses rollback errors.
+      // Commit/connection failures can leave an uncertain outcome, so never claim a confirmed rollback here.
+      const fields = {
+        operation: input.type,
+        phase: progress.phase,
+        outcome: progress.phase === 'work' ? ('rollback_attempted' as const) : ('unknown' as const),
+        durationMs: Math.round(performance.now() - started),
+        ...errorFields(error),
+      };
 
-        const previous = await this.requests.findOne({
-          where: { walletId: input.walletId, key },
-          transaction,
-        });
+      if (error instanceof DomainError && error.status < 500) {
+        this.logger.warn('transaction.failed', fields);
+      } else {
+        this.logger.error('transaction.failed', fields);
+      }
 
-        if (previous) {
-          return this.replay(previous, fingerprint, transaction);
-        }
-
-        const destinationAmount = converted(input.amount, quote.rate);
-
-        const savedTransaction = await this.transactions.create(
-          {
-            type: input.type,
-            sourceWalletId: input.type === 'deposit' ? null : input.walletId,
-            destinationWalletId: input.recipientId,
-            sourceCurrency: input.from,
-            destinationCurrency: input.to,
-            sourceAmount: input.amount,
-            destinationAmount,
-            rate: quote.rate,
-            rateSource: quote.source,
-            rateUpdatedAt: quote.updatedAt ? new Date(quote.updatedAt) : null,
-          },
-          { transaction },
-        );
-
-        await this.ledger.post(savedTransaction, transaction);
-
-        await this.requests.create(
-          { walletId: input.walletId, key, fingerprint, transactionId: savedTransaction.id },
-          { transaction },
-        );
-
-        return { transaction: transactionView(savedTransaction), replayed: false };
-      },
-    );
+      throw error;
+    }
   }
 }

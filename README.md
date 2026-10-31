@@ -37,15 +37,16 @@ yarn dev
 
 For a compiled local run, use `yarn build && yarn start`. Run these commands from the repository root so the API can locate its migrations and OpenAPI document. Local development needs only the database container, not a second Docker API on the same port.
 
-| Setting                | Default                          | Purpose                                        |
-| ---------------------- | -------------------------------- | ---------------------------------------------- |
-| `PORT`                 | `3000`                           | Local Node API port                            |
-| `DATABASE_URL`         | Local PostgreSQL on port `55432` | Database connection; see `.env.example`        |
-| `FX_MODE`              | `live`                           | `live` with fallback, or deterministic `fixed` |
-| `FX_BASE_URL`          | Public currency API CDN          | Administrator-controlled provider base URL     |
-| `FX_TIMEOUT_MS`        | `2500`                           | Complete HTTP request timeout, 50–10000 ms     |
-| `FX_CACHE_SECONDS`     | `3600`                           | Successful snapshot cache, 1–86400 seconds     |
-| `API_PORT` / `DB_PORT` | `3000` / `55432`                 | Docker host ports only                         |
+| Setting                | Default                          | Purpose                                                         |
+| ---------------------- | -------------------------------- | --------------------------------------------------------------- |
+| `LOG_LEVEL`            | `info`                           | Application logs: `debug`, `info`, `warn`, `error`, or `silent` |
+| `PORT`                 | `3000`                           | Local Node API port                                             |
+| `DATABASE_URL`         | Local PostgreSQL on port `55432` | Database connection; see `.env.example`                         |
+| `FX_MODE`              | `live`                           | `live` with fallback, or deterministic `fixed`                  |
+| `FX_BASE_URL`          | Public currency API CDN          | Administrator-controlled provider base URL                      |
+| `FX_TIMEOUT_MS`        | `2500`                           | Complete HTTP request timeout, 50–10000 ms                      |
+| `FX_CACHE_SECONDS`     | `3600`                           | Successful snapshot cache, 1–86400 seconds                      |
+| `API_PORT` / `DB_PORT` | `3000` / `55432`                 | Docker host ports only                                          |
 
 Compose supplies its own internal database URL. Its credentials are disposable local development values. `.env` is ignored by Git.
 
@@ -260,6 +261,24 @@ Requests have a timeout and body-size limit. Invalid, incomplete, stale, unavail
 | EURx  |           0.9 |
 
 Pair rate = destination units / source units. Successful live data is cached per API instance for one hour by default; fallback has a 60-second retry cooldown. Concurrent requests share a refresh. `/rates` identifies `source` and `updatedAt`; balances and cross-currency transactions expose `rateSource` and `rateUpdatedAt`. Dates are the provider's publication time or the fixed table version date. Historical transactions never recalculate their applied rate. Deposits and same-currency transfers use rate 1 with null rate metadata and make no FX request.
+
+## Request tracing
+
+Application events are JSON lines on stdout. Every HTTP attempt receives a server-generated `X-Request-ID` response header, including validation failures and unknown routes. The same `requestId` follows asynchronous service calls and response completion; financial events also include `transactionId` and `journalId` as they become available. A retry has a new request ID and references the original transaction ID.
+
+The default `LOG_LEVEL=info` includes wallet creation, committed transactions, replays, completed requests, warnings, and errors. For detailed posting and lock events, set `LOG_LEVEL=debug` in `.env`, or run:
+
+```bash
+LOG_LEVEL=debug yarn dev
+# Docker: recreate the API with the requested logging level
+LOG_LEVEL=debug docker compose up -d api
+```
+
+A successful money operation can be followed through `http.request.started`, `transaction.started`, `wallet.locks_waiting`, `wallet.locks_acquired`, `ledger.posting.prepared`, `transaction.committed`, and `http.request.completed`. Lock `waitMs` includes the wallet lock query; request and transaction `durationMs` measure their respective lifetimes. Ledger preparation is still uncommitted; `transaction.committed` is emitted only after Sequelize's managed transaction resolves successfully.
+
+`transaction.failed` includes the phase (`begin`, `work`, or `commit`) and safe error codes. Work failures use `outcome: "rollback_attempted"`: Sequelize attempts rollback but suppresses rollback errors, so the application does not claim confirmation. Begin/commit failures use `outcome: "unknown"`. Check the database or retry with the same idempotency key to resolve an uncertain result. A closed HTTP connection produces `http.request.aborted`; that event makes no claim about the financial outcome.
+
+Logs use route templates and operational metadata. Application events omit raw URLs, request/response bodies, email addresses, phone numbers, authorization headers, idempotency keys, SQL, and raw exception messages. Database failures include the SQLSTATE and constraint name when available. FX fallback logs carry a reason category. Nest infrastructure warnings/errors use its JSON console logger separately from application `LOG_LEVEL`. Logs are operational diagnostics; the database ledger remains the accounting record.
 
 ## Tests and verification
 

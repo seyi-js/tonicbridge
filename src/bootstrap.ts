@@ -1,4 +1,7 @@
 import 'reflect-metadata';
+import { ConsoleLogger } from '@nestjs/common';
+import { AppLogger } from './common/logging/app-logger';
+import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, OpenAPIObject } from '@nestjs/swagger';
 import { readFile } from 'node:fs/promises';
@@ -8,11 +11,15 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 
 export async function createApp() {
   const app = await NestFactory.create(AppModule, {
-    logger: ['warn', 'error'],
+    logger: new ConsoleLogger({ json: true, logLevels: ['warn', 'error'] }),
     abortOnError: false,
   });
 
-  app.useGlobalFilters(new ErrorFilter());
+  const requestLogging = app.get(RequestLoggingMiddleware);
+
+  // Register before Nest's body parser so malformed JSON also has a request ID.
+  app.use(requestLogging.use.bind(requestLogging));
+  app.useGlobalFilters(new ErrorFilter(app.get(AppLogger)));
 
   app.useGlobalInterceptors(new ResponseInterceptor());
 

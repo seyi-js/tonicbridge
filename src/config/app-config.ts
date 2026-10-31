@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const APP_CONFIG = Symbol('APP_CONFIG');
 
 const schema = z.object({
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).default('info'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z
     .string()

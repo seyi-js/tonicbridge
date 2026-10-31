@@ -49,6 +49,11 @@
                   "errors": []
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "503": {
@@ -70,6 +75,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -79,6 +89,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -123,6 +138,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -157,6 +177,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "409": {
@@ -178,6 +203,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -187,6 +217,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -231,6 +266,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -251,6 +291,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -273,6 +318,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -282,6 +332,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -326,6 +381,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -346,6 +406,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -368,6 +433,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -377,6 +447,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -448,6 +523,9 @@
                   "type": "string",
                   "enum": ["false"]
                 }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -481,6 +559,9 @@
                   "type": "string",
                   "enum": ["true"]
                 }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -503,6 +584,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "404": {
@@ -523,6 +609,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -545,6 +636,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "422": {
@@ -565,6 +661,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -587,6 +688,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -596,6 +702,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -667,6 +778,9 @@
                   "type": "string",
                   "enum": ["false"]
                 }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -700,6 +814,9 @@
                   "type": "string",
                   "enum": ["true"]
                 }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -722,6 +839,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "404": {
@@ -742,6 +864,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -764,6 +891,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "422": {
@@ -784,6 +916,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -806,6 +943,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -815,6 +957,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -886,6 +1033,9 @@
                   "type": "string",
                   "enum": ["false"]
                 }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -919,6 +1069,9 @@
                   "type": "string",
                   "enum": ["true"]
                 }
+              },
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -941,6 +1094,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "404": {
@@ -961,6 +1119,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -983,6 +1146,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "422": {
@@ -1003,6 +1171,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1025,6 +1198,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -1034,6 +1212,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -1125,6 +1308,11 @@
                   "errors": []
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1145,6 +1333,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1167,6 +1360,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -1176,6 +1374,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -1221,6 +1424,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1241,6 +1449,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1263,6 +1476,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -1272,6 +1490,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -1306,6 +1529,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -1315,6 +1543,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -1359,6 +1592,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "400": {
@@ -1379,6 +1617,11 @@
                     }
                   ]
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           },
@@ -1401,6 +1644,11 @@
                   ]
                 }
               }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
+              }
             }
           },
           "default": {
@@ -1410,6 +1658,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/RequestId"
               }
             }
           }
@@ -2062,6 +2315,15 @@
           }
         },
         "required": ["statusCode", "message", "data", "meta", "errors"]
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "Server-generated UUID identifying this HTTP attempt. Use it to correlate application logs; retries receive a new request ID.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
       }
     }
   }

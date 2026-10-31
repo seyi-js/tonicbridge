@@ -18,6 +18,7 @@ services:
     build: .
     environment:
       PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       DATABASE_URL: postgresql://tonic:tonic_local@db:5432/tonicbridge
       FX_MODE: ${FX_MODE:-live}
       FX_BASE_URL: ${FX_BASE_URL:-https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest}

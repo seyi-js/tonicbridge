@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
 import { readConfig } from '../src/config/app-config';
+import { AppLogger } from '../src/common/logging/app-logger';
+import { RequestContext } from '../src/common/logging/request-context';
 import { FxService } from '../src/modules/fx/fx.service';
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -46,13 +48,16 @@ async function provider(body: unknown, status = 200, delay = 0, timeout = 1000) 
   );
 
   const config = {
-    ...readConfig({}),
+    ...readConfig({ LOG_LEVEL: 'silent' }),
     FX_MODE: 'live' as const,
     FX_BASE_URL: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     FX_TIMEOUT_MS: timeout,
   };
 
-  return { service: new FxService(config), calls: () => calls };
+  return {
+    service: new FxService(config, new AppLogger(config, new RequestContext())),
+    calls: () => calls,
+  };
 }
 
 describe('FX HTTP adapter', () => {
@@ -109,11 +114,13 @@ describe('FX HTTP adapter', () => {
   });
 
   it('supports fixed mode without any network access', async () => {
-    const service = new FxService({
-      ...readConfig({}),
-      FX_MODE: 'fixed',
+    const config = {
+      ...readConfig({ LOG_LEVEL: 'silent' }),
+      FX_MODE: 'fixed' as const,
       FX_BASE_URL: 'http://127.0.0.1:1',
-    });
+    };
+
+    const service = new FxService(config, new AppLogger(config, new RequestContext()));
 
     expect((await service.snapshot()).source).toBe('fixed');
   });

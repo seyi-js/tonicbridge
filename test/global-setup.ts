@@ -2,6 +2,7 @@ import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
 export default async function setup() {
   process.env.FX_MODE = 'fixed';
+  process.env.LOG_LEVEL = 'silent';
 
   if (process.env.TEST_DATABASE_URL) {
     if (!new URL(process.env.TEST_DATABASE_URL).pathname.endsWith('_test')) {

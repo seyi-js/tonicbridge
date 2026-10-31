@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/sequelize';
 import { UniqueConstraintError } from 'sequelize';
 import { Repository, Sequelize } from 'sequelize-typescript';
+import { AppLogger } from '../../common/logging/app-logger';
 import { DomainError } from '../../common/errors/domain.error';
 import { currencies } from '../../common/money';
 import { CreateWalletDto } from './dto/create-wallet.dto';
@@ -17,11 +18,12 @@ export class WalletsService {
     @InjectModel(Wallet) private readonly wallets: Repository<Wallet>,
     @InjectModel(Balance) private readonly balancesRepository: Repository<Balance>,
     @Inject(LedgerService) private readonly ledger: LedgerService,
+    @Inject(AppLogger) private readonly logger: AppLogger,
   ) {}
 
   async create(input: CreateWalletDto) {
     try {
-      return await this.sequelize.transaction(async (transaction) => {
+      const created = await this.sequelize.transaction(async (transaction) => {
         const wallet = await this.wallets.create(
           { email: input.email ?? null, phone: input.phone ?? null },
           { transaction },
@@ -36,6 +38,10 @@ export class WalletsService {
 
         return walletView(wallet);
       });
+
+      this.logger.info('wallet.created', { walletId: created.id, balanceCount: currencies.length });
+
+      return created;
     } catch (error) {
       if (error instanceof UniqueConstraintError) {
         throw new DomainError(

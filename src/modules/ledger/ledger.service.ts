@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
 import { Op, Transaction } from 'sequelize';
 import { Repository } from 'sequelize-typescript';
+import { AppLogger } from '../../common/logging/app-logger';
+import { RequestContext } from '../../common/logging/request-context';
 import { DomainError } from '../../common/errors/domain.error';
 import { currencies, Currency, D, MAX_AMOUNT, money } from '../../common/money';
 import { WalletTransaction } from '../transactions/models/transaction.model';
@@ -29,6 +31,8 @@ export class LedgerService {
     @InjectModel(LedgerJournal) private readonly journals: Repository<LedgerJournal>,
     @InjectModel(LedgerEntry) private readonly entries: Repository<LedgerEntry>,
     @InjectModel(Balance) private readonly balances: Repository<Balance>,
+    @Inject(AppLogger) private readonly logger: AppLogger,
+    @Inject(RequestContext) private readonly context: RequestContext,
   ) {}
 
   async createWalletAccounts(walletId: string, transaction: Transaction): Promise<void> {
@@ -40,7 +44,16 @@ export class LedgerService {
 
   // The caller holds ordered wallet locks and owns the surrounding database transaction.
   async post(record: WalletTransaction, dbTransaction: Transaction): Promise<void> {
+    const started = performance.now();
     const postings = this.postings(record);
+
+    this.context.identify({ transactionId: record.id });
+
+    this.logger.debug('ledger.posting.started', {
+      transactionId: record.id,
+      operation: record.type,
+      entryCount: postings.length,
+    });
 
     const walletIds = [
       ...new Set(postings.flatMap((entry) => (entry.walletId ? [entry.walletId] : []))),
@@ -96,6 +109,13 @@ export class LedgerService {
       { transaction: dbTransaction },
     );
 
+    this.context.identify({ journalId: journal.id });
+
+    this.logger.debug('ledger.journal_prepared', {
+      transactionId: record.id,
+      journalId: journal.id,
+    });
+
     await this.entries.bulkCreate(
       postings.map((entry, index) => {
         const account = accounts.find(
@@ -124,6 +144,15 @@ export class LedgerService {
     for (const change of changes) {
       await change.balance.update({ amount: change.amount }, { transaction: dbTransaction });
     }
+
+    this.logger.debug('ledger.posting.prepared', {
+      transactionId: record.id,
+      journalId: journal.id,
+      entryCount: postings.length,
+      balanceCount: changes.length,
+      durationMs: Math.round(performance.now() - started),
+    });
+
     // Deferred PostgreSQL constraints verify balance, transaction matching, and projections at commit.
   }
 
