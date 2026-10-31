@@ -312,4 +312,4 @@ See [the simulation context](postman/simulations/fx.context.md) for evidence and
 - Offset pagination can shift when new records arrive between requests. Count and page are internally consistent within one request; cursor pagination would improve long histories.
 - Future production work includes authenticated wallet ownership, rate limiting, external settlement reconciliation, reversals, observability, backup/restore procedures, and an explicit idempotency retention policy. An outbox would be appropriate if external notifications or asynchronous settlement were added.
 
-Design decisions and invariants are also recorded in [docs/decisions.md](docs/decisions.md). Git history follows working milestones: contract, scaffold, wallets, deposits, FX, swaps, transfers, history, failure/concurrency verification, and the NestJS/Sequelize refactor.
+Design decisions and invariants are also recorded in [docs/decisions.md](docs/decisions.md).
